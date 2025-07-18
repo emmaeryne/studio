@@ -124,7 +124,11 @@ export default function ClientCaseDetailPage({ params }: { params: { id: string 
                   </li>
                 )) : <p className="text-muted-foreground">Aucun rendez-vous planifié.</p>}
               </ul>
-               <Button variant="secondary" className="w-full mt-4">Planifier un rendez-vous</Button>
+               <Button variant="secondary" className="w-full mt-4" asChild>
+                  <Link href="/dashboard/calendar">
+                    Planifier un rendez-vous
+                  </Link>
+                </Button>
             </CardContent>
           </Card>
         </div>

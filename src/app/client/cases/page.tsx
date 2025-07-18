@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle, FileText, ArrowUpRight } from "lucide-react";
 import { cases, user } from "@/lib/data";
 import { Badge } from "@/components/ui/badge";
+import { AddClientCaseDialog } from "@/components/add-client-case-dialog";
 
 export default function ClientCasesPage() {
   const clientUser = user.currentUser;
@@ -29,10 +30,12 @@ export default function ClientCasesPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl md:text-3xl font-headline font-bold">Mes Affaires</h1>
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Soumettre une nouvelle affaire
-        </Button>
+        <AddClientCaseDialog>
+          <Button>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Soumettre une nouvelle affaire
+          </Button>
+        </AddClientCaseDialog>
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {clientCases.map(caseItem => (
@@ -67,10 +70,12 @@ export default function ClientCasesPage() {
             <CardContent className="text-center">
               <p className="text-xl font-medium">Vous n'avez aucune affaire en cours.</p>
               <p className="text-muted-foreground mb-4">Soumettez une nouvelle affaire pour commencer.</p>
-              <Button>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Soumettre une nouvelle affaire
-              </Button>
+              <AddClientCaseDialog>
+                <Button>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Soumettre une nouvelle affaire
+                </Button>
+              </AddClientCaseDialog>
             </CardContent>
           </Card>
         )}

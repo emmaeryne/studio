@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { user } from "@/lib/data";
-import { Bell, Briefcase, FileText, LayoutDashboard, MessageSquare } from "lucide-react";
+import { Bell, Briefcase, Calendar, LayoutDashboard, MessageSquare } from "lucide-react";
 import { Chatbot } from "@/components/chatbot";
 
 export default function ClientLayout({
@@ -50,7 +50,7 @@ export default function ClientLayout({
             Messages
           </Link>
            <Link
-            href="#"
+            href="/dashboard/calendar"
             className="text-muted-foreground transition-colors hover:text-foreground"
           >
             Rendez-vous
@@ -78,7 +78,7 @@ export default function ClientLayout({
               <DropdownMenuLabel>{clientUser.name}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link href="/dashboard/profile">Profil</Link>
+                <Link href="/client/profile">Profil</Link>
               </DropdownMenuItem>
               <DropdownMenuItem>Paiements</DropdownMenuItem>
               <DropdownMenuSeparator />

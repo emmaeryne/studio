@@ -57,6 +57,16 @@ export type Lawyer = {
     avatar: string;
 }
 
+export type Client = {
+    id: string;
+    name: string;
+    email: string;
+    avatar: string;
+    address?: string;
+    phone?: string;
+};
+
+
 export const cases: Case[] = [
   {
     id: '1',
@@ -145,18 +155,22 @@ const lawyer: Lawyer = {
     avatar: 'https://placehold.co/100x100.png',
 };
 
-const clients = [
+const clients: Client[] = [
   {
     id: 'client-alice',
     name: 'Alice Martin',
     email: 'alice.martin@email.com',
     avatar: 'https://placehold.co/100x100.png?text=AM',
+    address: '123 Rue de la Paix, 75001 Paris',
+    phone: '06 12 34 56 78'
   },
   {
     id: 'client-bernard',
     name: 'Bernard Petit',
     email: 'bernard.petit@email.com',
     avatar: 'https://placehold.co/100x100.png?text=BP',
+    address: '45 Avenue des Champs-Élysées, 75008 Paris',
+    phone: '06 98 76 54 32'
   }
 ]
 
