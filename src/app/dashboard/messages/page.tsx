@@ -75,9 +75,9 @@ export default function MessagesPage() {
               {selectedConversation.messages.map(message => (
                 <div key={message.id} className={cn(
                     "flex gap-3",
-                    message.senderId === user.email ? "justify-end" : "justify-start"
+                    message.senderId === user.lawyer.email ? "justify-end" : "justify-start"
                 )}>
-                  {message.senderId !== user.email && (
+                  {message.senderId !== user.lawyer.email && (
                      <Avatar className="h-8 w-8">
                         <AvatarImage src={selectedConversation.clientAvatar} alt={selectedConversation.clientName} />
                         <AvatarFallback>{selectedConversation.clientName.charAt(0)}</AvatarFallback>
@@ -85,15 +85,15 @@ export default function MessagesPage() {
                   )}
                   <div className={cn(
                       "p-3 rounded-lg max-w-xs lg:max-w-md",
-                      message.senderId === user.email ? "bg-primary text-primary-foreground" : "bg-secondary"
+                      message.senderId === user.lawyer.email ? "bg-primary text-primary-foreground" : "bg-secondary"
                   )}>
                     <p className="text-sm">{message.content}</p>
                     <p className="text-xs text-right mt-1 opacity-70">{new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                   </div>
-                   {message.senderId === user.email && (
+                   {message.senderId === user.lawyer.email && (
                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={user.avatar} alt={user.name} />
-                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                        <AvatarImage src={user.lawyer.avatar} alt={user.lawyer.name} />
+                        <AvatarFallback>{user.lawyer.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                   )}
                 </div>

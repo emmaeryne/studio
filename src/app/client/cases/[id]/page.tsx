@@ -1,0 +1,136 @@
+import { notFound } from "next/navigation";
+import { cases, user } from "@/lib/data";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ArrowLeft, Briefcase, Calendar, Clock, Download, FileText, Upload } from "lucide-react";
+import Link from "next/link";
+
+export default function ClientCaseDetailPage({ params }: { params: { id: string } }) {
+  const clientUser = user.currentUser;
+  const caseItem = cases.find((c) => c.id === params.id && c.clientId === clientUser.id);
+
+  if (!caseItem) {
+    notFound();
+  }
+  
+  const getStatusVariant = (status: string) => {
+    switch (status) {
+      case 'Nouveau': return 'destructive';
+      case 'En cours': return 'default';
+      case 'Clôturé': return 'secondary';
+      case 'En attente du client': return 'outline';
+      default: return 'outline';
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <Button variant="outline" asChild>
+            <Link href="/client/cases">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Retour à mes affaires
+            </Link>
+        </Button>
+      </div>
+      <div className="flex flex-col lg:flex-row items-start justify-between gap-4">
+        <div>
+            <h1 className="text-2xl md:text-3xl font-headline font-bold">{caseItem.caseNumber}</h1>
+            <p className="text-muted-foreground">{caseItem.caseType}</p>
+        </div>
+        <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Statut :</span>
+            <Badge variant={getStatusVariant(caseItem.status)}>{caseItem.status}</Badge>
+        </div>
+      </div>
+      
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-headline flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary"/>Résumé de l'affaire</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-sm text-muted-foreground">{caseItem.description}</p>
+            </CardContent>
+          </Card>
+           <Card>
+            <CardHeader>
+              <CardTitle className="font-headline flex items-center gap-2"><FileText className="h-5 w-5 text-primary"/>Documents</CardTitle>
+              <CardDescription>Consultez ou ajoutez des documents relatifs à votre affaire.</CardDescription>
+            </CardHeader>
+            <CardContent>
+               <ul className="space-y-3 text-sm">
+                {caseItem.documents.length > 0 ? caseItem.documents.map((doc, i) => (
+                  <li key={i} className="flex items-center justify-between p-2 rounded-md border">
+                    <Link href={doc.url} className="text-primary hover:underline truncate pr-2 flex items-center gap-2">
+                        <FileText className="h-4 w-4"/>
+                        {doc.name}
+                    </Link>
+                    <Button variant="ghost" size="sm">
+                        <Download className="h-4 w-4 mr-2"/>
+                        Télécharger
+                    </Button>
+                  </li>
+                )) : <p className="text-muted-foreground text-center py-4">Aucun document pour cette affaire.</p>}
+              </ul>
+              <div className="mt-4 flex justify-start">
+                  <Button variant="outline">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Ajouter un document
+                  </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-headline flex items-center gap-2"><Clock className="h-5 w-5 text-primary"/>Échéances Clés</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3 text-sm">
+                {caseItem.keyDeadlines.length > 0 ? caseItem.keyDeadlines.map((deadline, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                     <Clock className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                    <div>
+                        <p className="font-medium">{new Date(deadline.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                        <p className="text-muted-foreground">{deadline.description}</p>
+                    </div>
+                  </li>
+                )) : <p className="text-muted-foreground">Aucune échéance à venir.</p>}
+              </ul>
+            </CardContent>
+          </Card>
+           <Card>
+            <CardHeader>
+              <CardTitle className="font-headline flex items-center gap-2"><Calendar className="h-5 w-5 text-primary"/>Rendez-vous</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3 text-sm">
+                {caseItem.appointments.length > 0 ? caseItem.appointments.map((appointment, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                     <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                    <div>
+                        <p className="font-medium">{new Date(appointment.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} à {appointment.time}</p>
+                        <p className="text-muted-foreground">{appointment.notes}</p>
+                    </div>
+                  </li>
+                )) : <p className="text-muted-foreground">Aucun rendez-vous planifié.</p>}
+              </ul>
+               <Button variant="secondary" className="w-full mt-4">Planifier un rendez-vous</Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}

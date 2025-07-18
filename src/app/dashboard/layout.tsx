@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { user } from "@/lib/data";
 import { DashboardNav } from "@/components/dashboard-nav";
-import { Bell, Briefcase, Search } from "lucide-react";
+import { Bell, Briefcase, Bot, Search } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -65,6 +65,10 @@ export default function DashboardLayout({
                 </form> */}
               </div>
               <Button variant="ghost" size="icon" className="rounded-full">
+                <Bot className="h-5 w-5" />
+                <span className="sr-only">Toggle AI Chatbot</span>
+              </Button>
+              <Button variant="ghost" size="icon" className="rounded-full">
                 <Bell className="h-5 w-5" />
                 <span className="sr-only">Toggle notifications</span>
               </Button>
@@ -72,8 +76,8 @@ export default function DashboardLayout({
                 <DropdownMenuTrigger asChild>
                   <Button variant="secondary" size="icon" className="rounded-full">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.avatar} alt={user.name} />
-                      <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                      <AvatarImage src={user.lawyer.avatar} alt={user.lawyer.name} />
+                      <AvatarFallback>{user.lawyer.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <span className="sr-only">Toggle user menu</span>
                   </Button>
@@ -84,7 +88,9 @@ export default function DashboardLayout({
                   <DropdownMenuItem>Paramètres</DropdownMenuItem>
                   <DropdownMenuItem>Support</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>Déconnexion</DropdownMenuItem>
+                   <DropdownMenuItem asChild>
+                    <Link href="/login">Changer d'utilisateur</Link>
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </header>

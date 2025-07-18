@@ -32,6 +32,16 @@ export default function DashboardPage() {
     .slice(0, 5);
 
   const upcomingAppointments = appointments.filter(a => new Date(a.date) >= new Date()).slice(0, 5);
+  
+  const getStatusVariant = (status: string) => {
+    switch (status) {
+      case 'Nouveau': return 'destructive';
+      case 'En cours': return 'default';
+      case 'Clôturé': return 'secondary';
+      case 'En attente du client': return 'outline';
+      default: return 'outline';
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -128,7 +138,7 @@ export default function DashboardPage() {
                     </TableCell>
                      <TableCell className="hidden sm:table-cell">{caseItem.caseType}</TableCell>
                     <TableCell>
-                      <Badge variant={caseItem.status === 'Nouveau' ? 'destructive' : caseItem.status === 'Clôturé' ? 'secondary' : 'default'} className="bg-primary/20 text-primary hover:bg-primary/30">
+                      <Badge variant={getStatusVariant(caseItem.status)} className={caseItem.status === 'En cours' ? 'bg-primary/20 text-primary hover:bg-primary/30' : ''}>
                         {caseItem.status}
                       </Badge>
                     </TableCell>

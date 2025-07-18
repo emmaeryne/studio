@@ -29,6 +29,7 @@ export default function CasesPage() {
       case 'Nouveau': return 'destructive';
       case 'En cours': return 'default';
       case 'Clôturé': return 'secondary';
+      case 'En attente du client': return 'outline';
       default: return 'outline';
     }
   };
