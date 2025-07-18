@@ -224,7 +224,7 @@ const clients: Client[] = [
   }
 ];
 
-const notifications: Notification[] = [
+export const notifications: Notification[] = [
     { id: 'notif-1', userId: 'client-carole', message: 'Votre affaire CASE-004 a été clôturée.', read: false, date: '2024-03-15' },
     { id: 'notif-2', userId: 'client-alice', message: 'Rappel: Rendez-vous le 10/07/2024 à 10:00 avec Maître Dupont.', read: false, date: '2024-07-09' },
     { id: 'notif-3', userId: 'client-alice', message: 'Un nouveau document a été ajouté à votre affaire CASE-001.', read: true, date: '2024-05-18' },
@@ -239,7 +239,6 @@ export const invoices: Invoice[] = [
 export const user = {
   lawyer,
   clients,
-  notifications,
   // We can imagine a login system would set the current user
   currentUser: clients[0], 
 };
