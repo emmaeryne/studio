@@ -48,21 +48,19 @@ export function AddClientCaseDialog({ children }: { children: React.ReactNode })
     }
 
     try {
-      // Submit the case and get the new case ID back
       const result = await addClientCase(newCaseData);
       
       if (!result.success || !result.newCaseId) {
         throw new Error(result.error || "Failed to create case.");
       }
       
-      const newCaseId = result.newCaseId;
+      router.refresh();
 
       toast({
         title: 'Affaire Soumise',
         description: `Votre nouvelle affaire a été soumise avec succès.`,
       });
       
-      // Get the cost estimate
       const estimateResult = await getCaseCostEstimate(newCaseData);
       if (estimateResult.success && estimateResult.estimate) {
         setEstimate(estimateResult.estimate);
@@ -73,12 +71,7 @@ export function AddClientCaseDialog({ children }: { children: React.ReactNode })
           description: "Impossible d'estimer le coût, mais votre affaire a bien été soumise.",
         });
       }
-
-      // Redirect to the new case detail page after a short delay to show the toast
-      setTimeout(() => {
-        setOpen(false);
-        router.push(`/client/cases/${newCaseId}`);
-      }, 1000); // 1-second delay
+      setIsLoading(false);
 
     } catch (error) {
       toast({
@@ -88,20 +81,19 @@ export function AddClientCaseDialog({ children }: { children: React.ReactNode })
       });
       setIsLoading(false);
     }
-    // No finally block for setIsLoading(false) because we navigate away on success
   };
 
-  const handleOpenChange = (isOpen: boolean) => {
-    if (!isOpen) {
-      // Reset state when closing
-      setEstimate(null);
-      setIsLoading(false);
-    }
-    setOpen(isOpen);
+  const handleCloseAndReset = () => {
+    setOpen(false);
+    // Use a timeout to allow the dialog to close before resetting state
+    setTimeout(() => {
+        setEstimate(null);
+        setIsLoading(false);
+    }, 300);
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleCloseAndReset()}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
@@ -124,7 +116,9 @@ export function AddClientCaseDialog({ children }: { children: React.ReactNode })
                         <p className='mt-2 text-xs text-muted-foreground'>Ceci est une estimation générée par l'IA. Votre avocat vous fournira un devis détaillé.</p>
                     </AlertDescription>
                 </Alert>
-                 <p className='text-center text-sm text-muted-foreground'>Vous allez être redirigé...</p>
+                <DialogFooter>
+                  <Button onClick={handleCloseAndReset}>Fermer</Button>
+                </DialogFooter>
             </div>
         ) : (
             <form onSubmit={handleSubmit}>
