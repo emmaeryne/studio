@@ -80,8 +80,11 @@ export async function addClientCase(newCase: { caseType: Case['caseType']; descr
             appointments: [],
             keyDeadlines: [],
         });
+        
+        // Revalidate both the list page and the new detail page path
         revalidatePath('/client/cases');
         revalidatePath(`/client/cases/${nextId}`);
+
         return { success: true, newCaseId: nextId };
     } catch (error) {
         console.error(error);
