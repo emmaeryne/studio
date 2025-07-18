@@ -3,8 +3,8 @@ import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Liaison Légale",
-  description: "Gestion des Affaires Juridiques",
+  title: "AvocatConnect",
+  description: "Simplified Legal Case Management",
 };
 
 export default function RootLayout({

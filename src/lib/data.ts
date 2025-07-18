@@ -9,6 +9,7 @@ export type Appointment = {
   date: string;
   time: string;
   notes: string;
+  caseId: string;
 };
 
 export type Deadline = {
@@ -20,21 +21,41 @@ export type Case = {
   id: string;
   caseNumber: string;
   clientName: string;
+  clientAvatar: string;
   caseType: 'Litige civil' | 'Droit pénal' | 'Droit de la famille' | 'Droit des sociétés';
   status: 'Nouveau' | 'En cours' | 'Clôturé';
   submittedDate: string;
   lastUpdate: string;
   description: string;
   documents: CaseDocument[];
-  appointments: Appointment[];
+  appointments: Omit<Appointment, 'caseId'>[];
   keyDeadlines: Deadline[];
 };
+
+export type Message = {
+    id: string;
+    senderId: string; // email
+    content: string;
+    timestamp: string;
+};
+
+export type Conversation = {
+    id: string;
+    caseId: string;
+    caseNumber: string;
+    clientName: string;
+    clientAvatar: string;
+    unreadCount: number;
+    messages: Message[];
+};
+
 
 export const cases: Case[] = [
   {
     id: '1',
     caseNumber: 'CASE-001',
     clientName: 'Alice Martin',
+    clientAvatar: 'https://placehold.co/100x100.png?text=AM',
     caseType: 'Droit de la famille',
     status: 'En cours',
     submittedDate: '2023-10-15',
@@ -51,6 +72,7 @@ export const cases: Case[] = [
     id: '2',
     caseNumber: 'CASE-002',
     clientName: 'Bernard Petit',
+    clientAvatar: 'https://placehold.co/100x100.png?text=BP',
     caseType: 'Litige civil',
     status: 'Nouveau',
     submittedDate: '2024-05-10',
@@ -64,6 +86,7 @@ export const cases: Case[] = [
     id: '3',
     caseNumber: 'CASE-003',
     clientName: 'Société Innovatech',
+    clientAvatar: 'https://placehold.co/100x100.png?text=SI',
     caseType: 'Droit des sociétés',
     status: 'En cours',
     submittedDate: '2024-02-01',
@@ -77,6 +100,7 @@ export const cases: Case[] = [
     id: '4',
     caseNumber: 'CASE-004',
     clientName: 'Carole Duval',
+    clientAvatar: 'https://placehold.co/100x100.png?text=CD',
     caseType: 'Droit pénal',
     status: 'Clôturé',
     submittedDate: '2023-01-20',
@@ -90,6 +114,7 @@ export const cases: Case[] = [
     id: '5',
     caseNumber: 'CASE-005',
     clientName: 'David Moreau',
+    clientAvatar: 'https://placehold.co/100x100.png?text=DM',
     caseType: 'Litige civil',
     status: 'Nouveau',
     submittedDate: '2024-05-22',
@@ -108,5 +133,45 @@ export const user = {
     avatar: 'https://placehold.co/100x100.png',
 };
 
-export const appointments: (Appointment & {clientName: string, caseId: string})[] = cases.flatMap(c => c.appointments.map(a => ({...a, clientName: c.clientName, caseId: c.id})))
+export const appointments: (Omit<Appointment, 'caseId'> & {clientName: string, caseId: string})[] = cases.flatMap(c => c.appointments.map(a => ({...a, clientName: c.clientName, caseId: c.id})))
   .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+export const conversations: Conversation[] = [
+    {
+        id: 'conv-1',
+        caseId: '1',
+        caseNumber: 'CASE-001',
+        clientName: 'Alice Martin',
+        clientAvatar: 'https://placehold.co/100x100.png?text=AM',
+        unreadCount: 1,
+        messages: [
+            { id: 'msg-1-1', senderId: 'alice.martin@email.com', content: "Bonjour Maître, avez-vous pu regarder les documents que je vous ai envoyés ?", timestamp: '2024-05-23T10:00:00Z' },
+            { id: 'msg-1-2', senderId: user.email, content: "Bonjour Madame Martin, oui je les ai bien reçus. Je reviens vers vous rapidement.", timestamp: '2024-05-23T10:05:00Z' },
+            { id: 'msg-1-3', senderId: 'alice.martin@email.com', content: "Parfait, merci beaucoup. J'attends votre retour.", timestamp: '2024-05-24T14:30:00Z' },
+        ]
+    },
+    {
+        id: 'conv-2',
+        caseId: '2',
+        caseNumber: 'CASE-002',
+        clientName: 'Bernard Petit',
+        clientAvatar: 'https://placehold.co/100x100.png?text=BP',
+        unreadCount: 0,
+        messages: [
+            { id: 'msg-2-1', senderId: user.email, content: "Monsieur Petit, j'ai bien avancé sur votre dossier. Pourriez-vous me fournir une copie de l'acte de propriété ?", timestamp: '2024-05-22T11:00:00Z' },
+            { id: 'msg-2-2', senderId: 'bernard.petit@email.com', content: "Bonjour Maître, oui bien sûr. Je vous envoie ça dans la journée. Merci.", timestamp: '2024-05-22T11:30:00Z' },
+        ]
+    },
+    {
+        id: 'conv-3',
+        caseId: '5',
+        caseNumber: 'CASE-005',
+        clientName: 'David Moreau',
+        clientAvatar: 'https://placehold.co/100x100.png?text=DM',
+        unreadCount: 2,
+        messages: [
+            { id: 'msg-3-1', senderId: 'david.moreau@email.com', content: "Maître, l'artisan me relance pour le paiement. Que dois-je faire ?", timestamp: '2024-05-25T09:15:00Z' },
+             { id: 'msg-3-2', senderId: 'david.moreau@email.com', content: "Avez-vous eu le temps de regarder les photos des malfaçons ?", timestamp: '2024-05-25T09:16:00Z' },
+        ]
+    }
+]

@@ -36,7 +36,7 @@ export default function DashboardLayout({
             <div className="flex items-center gap-2 p-2 justify-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:py-2">
               <Briefcase className="h-8 w-8 text-primary group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:w-6" />
               <h1 className="text-xl font-headline font-bold group-data-[collapsible=icon]:hidden">
-                Liaison Légale
+                AvocatConnect
               </h1>
             </div>
           </SidebarHeader>
