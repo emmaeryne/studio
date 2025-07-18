@@ -6,10 +6,12 @@ export type CaseDocument = {
 };
 
 export type Appointment = {
+  id: string;
   date: string;
   time: string;
   notes: string;
   caseId: string;
+  status: 'Confirmé' | 'En attente' | 'Annulé';
 };
 
 export type Deadline = {
@@ -23,7 +25,7 @@ export type Case = {
   clientName: string;
   clientAvatar: string;
   clientId: string;
-  caseType: 'Litige civil' | 'Droit pénal' | 'Droit de la famille' | 'Droit des sociétés';
+  caseType: 'Litige civil' | 'Droit pénal' | 'Droit de la famille' | 'Droit des sociétés' | 'Autre';
   status: 'Nouveau' | 'En cours' | 'Clôturé' | 'En attente du client';
   submittedDate: string;
   lastUpdate: string;
@@ -51,7 +53,7 @@ export type Conversation = {
 };
 
 export type Lawyer = {
-    name: string;
+    name:string;
     email: string;
     role: string;
     avatar: string;
@@ -83,7 +85,7 @@ export const cases: Case[] = [
       { name: 'Contrat de mariage.pdf', url: '#' },
       { name: 'Preuves de revenus.pdf', url: '#' },
     ],
-    appointments: [{ date: '2024-07-10', time: '10:00', notes: 'Préparation audience' }],
+    appointments: [{ id: 'apt-1', date: '2024-07-10', time: '10:00', notes: 'Préparation audience', status: 'Confirmé' }],
     keyDeadlines: [{ date: '2024-07-20', description: 'Audience principale' }],
   },
   {
@@ -143,7 +145,7 @@ export const cases: Case[] = [
     lastUpdate: '2024-05-22',
     description: 'Contestation d\'une facture d\'artisan pour malfaçons sur des travaux de rénovation.',
     documents: [{ name: 'Devis signé.pdf', url: '#' }, { name: 'Photos malfaçons.zip', url: '#' }],
-    appointments: [{ date: '2024-06-05', time: '14:00', notes: 'Premier rendez-vous' }],
+    appointments: [{ id: 'apt-2', date: '2024-06-05', time: '14:00', notes: 'Premier rendez-vous', status: 'Confirmé' }],
     keyDeadlines: [],
   },
 ];
@@ -171,8 +173,32 @@ const clients: Client[] = [
     avatar: 'https://placehold.co/100x100.png?text=BP',
     address: '45 Avenue des Champs-Élysées, 75008 Paris',
     phone: '06 98 76 54 32'
+  },
+  {
+    id: 'client-carole',
+    name: 'Carole Duval',
+    email: 'carole.duval@email.com',
+    avatar: 'https://placehold.co/100x100.png?text=CD',
+    address: '78 Boulevard Saint-Germain, 75005 Paris',
+    phone: '06 11 22 33 44'
+  },
+  {
+    id: 'client-david',
+    name: 'David Moreau',
+    email: 'david.moreau@email.com',
+    avatar: 'https://placehold.co/100x100.png?text=DM',
+    address: '5 Rue du Faubourg Saint-Honoré, 75008 Paris',
+    phone: '06 55 66 77 88'
+  },
+  {
+    id: 'client-innovatech',
+    name: 'Société Innovatech',
+    email: 'contact@innovatech.com',
+    avatar: 'https://placehold.co/100x100.png?text=SI',
+    address: '1 Place de la Bourse, 75002 Paris',
+    phone: '01 23 45 67 89'
   }
-]
+];
 
 export const user = {
   lawyer,

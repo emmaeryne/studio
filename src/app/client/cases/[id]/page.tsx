@@ -12,6 +12,7 @@ import {
 import { ArrowLeft, Briefcase, Calendar, Clock, FileText } from "lucide-react";
 import Link from "next/link";
 import { ClientDocumentUploader } from "@/components/client-document-uploader";
+import { RequestAppointmentDialog } from "@/components/request-appointment-dialog";
 
 export default function ClientCaseDetailPage({ params }: { params: { id: string } }) {
   const clientUser = user.currentUser;
@@ -27,6 +28,15 @@ export default function ClientCaseDetailPage({ params }: { params: { id: string 
       case 'En cours': return 'default';
       case 'Clôturé': return 'secondary';
       case 'En attente du client': return 'outline';
+      default: return 'outline';
+    }
+  };
+
+  const getAppointmentStatusVariant = (status: string) => {
+    switch (status) {
+      case 'Confirmé': return 'default';
+      case 'En attente': return 'secondary';
+      case 'Annulé': return 'destructive';
       default: return 'outline';
     }
   };
@@ -118,17 +128,20 @@ export default function ClientCaseDetailPage({ params }: { params: { id: string 
                   <li key={i} className="flex items-start gap-3">
                      <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
                     <div>
-                        <p className="font-medium">{new Date(appointment.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} à {appointment.time}</p>
+                        <div className="flex items-center gap-2">
+                            <p className="font-medium">{new Date(appointment.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} à {appointment.time}</p>
+                            <Badge variant={getAppointmentStatusVariant(appointment.status)} className="text-xs">{appointment.status}</Badge>
+                        </div>
                         <p className="text-muted-foreground">{appointment.notes}</p>
                     </div>
                   </li>
                 )) : <p className="text-muted-foreground">Aucun rendez-vous planifié.</p>}
               </ul>
-               <Button variant="secondary" className="w-full mt-4" asChild>
-                  <Link href="/dashboard/calendar">
-                    Planifier un rendez-vous
-                  </Link>
+              <RequestAppointmentDialog cases={[caseItem]}>
+                <Button variant="secondary" className="w-full mt-4">
+                  Planifier un rendez-vous
                 </Button>
+              </RequestAppointmentDialog>
             </CardContent>
           </Card>
         </div>

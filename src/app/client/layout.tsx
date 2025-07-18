@@ -9,9 +9,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { user } from "@/lib/data";
+import { cases, user } from "@/lib/data";
 import { Bell, Briefcase, Calendar, LayoutDashboard, MessageSquare } from "lucide-react";
 import { Chatbot } from "@/components/chatbot";
+import { RequestAppointmentDialog } from "@/components/request-appointment-dialog";
 
 export default function ClientLayout({
   children,
@@ -19,6 +20,7 @@ export default function ClientLayout({
   children: React.ReactNode;
 }) {
   const clientUser = user.currentUser;
+  const clientCases = cases.filter(c => c.clientId === clientUser.id);
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -49,12 +51,11 @@ export default function ClientLayout({
           >
             Messages
           </Link>
-           <Link
-            href="/dashboard/calendar"
-            className="text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Rendez-vous
-          </Link>
+           <RequestAppointmentDialog cases={clientCases}>
+             <Button variant="link" className="text-muted-foreground p-0 h-auto">
+                Rendez-vous
+             </Button>
+           </RequestAppointmentDialog>
         </nav>
         <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
             <div className="ml-auto flex-1 sm:flex-initial">
