@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, ArrowUpRight } from "lucide-react";
+import { AddCaseDialog } from "@/components/add-case-dialog";
 
 export default function CasesPage() {
   const sortedCases = [...cases].sort(
@@ -38,10 +39,12 @@ export default function CasesPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl md:text-3xl font-headline font-bold">Gestion des Affaires</h1>
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Nouvelle Affaire
-        </Button>
+        <AddCaseDialog>
+          <Button>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Nouvelle Affaire
+          </Button>
+        </AddCaseDialog>
       </div>
 
       <Card>

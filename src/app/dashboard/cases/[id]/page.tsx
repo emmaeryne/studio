@@ -12,6 +12,7 @@ import {
 import { CaseDocumentUploader } from "@/components/case-document-uploader";
 import { ArrowLeft, Briefcase, Calendar, Clock, FileText, User } from "lucide-react";
 import Link from "next/link";
+import { Separator } from "@/components/ui/separator";
 
 export default function CaseDetailPage({ params }: { params: { id: string } }) {
   const caseItem = cases.find((c) => c.id === params.id);
@@ -47,7 +48,7 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
         </div>
         <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Statut :</span>
-            <Badge variant={getStatusVariant(caseItem.status)} className={caseItem.status === 'En cours' ? 'bg-primary/20 text-primary hover:bg-primary/30' : ''}>
+            <Badge variant={getStatusVariant(caseItem.status)} className="cursor-pointer">
                 {caseItem.status}
             </Badge>
         </div>
@@ -68,13 +69,14 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
                 <div className="font-semibold">Dernière mise à jour:</div>
                 <div>{new Date(caseItem.lastUpdate).toLocaleDateString()}</div>
               </dl>
-              <div className="mt-4">
+              <Separator className="my-4"/>
+              <div>
                 <h4 className="font-semibold text-sm mb-1">Description</h4>
                 <p className="text-sm text-muted-foreground">{caseItem.description}</p>
               </div>
             </CardContent>
           </Card>
-          <CaseDocumentUploader />
+          <CaseDocumentUploader caseId={caseItem.id} />
         </div>
 
         <div className="space-y-6">
@@ -83,13 +85,18 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
               <CardTitle className="font-headline flex items-center gap-2"><FileText className="h-5 w-5 text-primary"/>Documents</CardTitle>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-2 text-sm">
+               <ul className="space-y-3 text-sm">
                 {caseItem.documents.length > 0 ? caseItem.documents.map((doc, i) => (
-                  <li key={i} className="flex items-center justify-between">
-                    <Link href={doc.url} className="text-primary hover:underline truncate pr-2">{doc.name}</Link>
-                    <Button variant="outline" size="sm">Télécharger</Button>
+                  <li key={i} className="flex items-center justify-between p-2 rounded-md border">
+                    <Link href={doc.url} className="text-primary hover:underline truncate pr-2 flex items-center gap-2">
+                        <FileText className="h-4 w-4"/>
+                        {doc.name}
+                    </Link>
+                    <Button variant="ghost" size="sm">
+                        Télécharger
+                    </Button>
                   </li>
-                )) : <p className="text-muted-foreground">Aucun document.</p>}
+                )) : <p className="text-muted-foreground text-center py-4">Aucun document pour cette affaire.</p>}
               </ul>
             </CardContent>
           </Card>

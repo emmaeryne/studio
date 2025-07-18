@@ -18,6 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cases, appointments, user } from "@/lib/data";
 import { Briefcase, CheckCircle2, Archive, Clock, ArrowUpRight, PlusCircle, Calendar as CalendarIcon } from "lucide-react";
+import { AddCaseDialog } from "@/components/add-case-dialog";
 
 export default function DashboardPage() {
   const stats = {
@@ -47,10 +48,12 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl md:text-3xl font-headline font-bold">Tableau de Bord</h1>
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Nouvelle Affaire
-        </Button>
+        <AddCaseDialog>
+          <Button>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Nouvelle Affaire
+          </Button>
+        </AddCaseDialog>
       </div>
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
