@@ -19,7 +19,7 @@ import {
   SidebarTrigger,
   SidebarInset,
 } from "@/components/ui/sidebar";
-import { user } from "@/lib/data";
+import { user, notifications as allNotifications } from "@/lib/data";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { Briefcase, Search } from "lucide-react";
 import { Chatbot } from "@/components/chatbot";
@@ -32,7 +32,7 @@ export default function DashboardLayout({
 }) {
 
   const lawyerUser = user.lawyer;
-  const notifications = user.notifications.filter(n => n.userId === lawyerUser.email);
+  const notifications = allNotifications.filter(n => n.userId === lawyerUser.email);
 
 
   return (

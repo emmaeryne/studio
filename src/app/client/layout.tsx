@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cases, user } from "@/lib/data";
+import { cases, user, notifications as allNotifications } from "@/lib/data";
 import { Briefcase, Calendar, LayoutDashboard, MessageSquare } from "lucide-react";
 import { Chatbot } from "@/components/chatbot";
 import { RequestAppointmentDialog } from "@/components/request-appointment-dialog";
@@ -22,7 +22,7 @@ export default function ClientLayout({
 }) {
   const clientUser = user.currentUser;
   const clientCases = cases.filter(c => c.clientId === clientUser.id);
-  const notifications = user.notifications.filter(n => n.userId === clientUser.id);
+  const notifications = allNotifications.filter(n => n.userId === clientUser.id);
 
   return (
     <div className="flex min-h-screen w-full flex-col">
