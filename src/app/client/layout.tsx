@@ -10,9 +10,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cases, user } from "@/lib/data";
-import { Bell, Briefcase, Calendar, LayoutDashboard, MessageSquare } from "lucide-react";
+import { Briefcase, Calendar, LayoutDashboard, MessageSquare } from "lucide-react";
 import { Chatbot } from "@/components/chatbot";
 import { RequestAppointmentDialog } from "@/components/request-appointment-dialog";
+import { NotificationBell } from "@/components/notification-bell";
 
 export default function ClientLayout({
   children,
@@ -21,6 +22,7 @@ export default function ClientLayout({
 }) {
   const clientUser = user.currentUser;
   const clientCases = cases.filter(c => c.clientId === clientUser.id);
+  const notifications = user.notifications.filter(n => n.userId === clientUser.id);
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -61,10 +63,7 @@ export default function ClientLayout({
             <div className="ml-auto flex-1 sm:flex-initial">
                  <Chatbot />
             </div>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <Bell className="h-5 w-5" />
-                <span className="sr-only">Toggle notifications</span>
-              </Button>
+              <NotificationBell notifications={notifications} />
             <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" size="icon" className="rounded-full">
@@ -81,7 +80,9 @@ export default function ClientLayout({
               <DropdownMenuItem asChild>
                 <Link href="/client/profile">Profil</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem>Paiements</DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/client/payments">Paiements</Link>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link href="/login">Changer d'utilisateur</Link>

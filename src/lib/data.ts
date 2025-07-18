@@ -35,6 +35,11 @@ export type Case = {
   keyDeadlines: Deadline[];
 };
 
+export type CaseCostEstimate = {
+  estimatedCost: string;
+  justification: string;
+}
+
 export type Message = {
     id: string;
     senderId: string; // email
@@ -67,6 +72,25 @@ export type Client = {
     address?: string;
     phone?: string;
 };
+
+export type Notification = {
+    id: string;
+    userId: string; // The ID of the user to notify
+    message: string;
+    read: boolean;
+    date: string;
+};
+
+export type Invoice = {
+  id: string;
+  clientId: string;
+  caseId: string;
+  caseNumber: string;
+  number: string;
+  date: string;
+  amount: number;
+  status: 'Payée' | 'En attente';
+}
 
 
 export const cases: Case[] = [
@@ -200,9 +224,22 @@ const clients: Client[] = [
   }
 ];
 
+const notifications: Notification[] = [
+    { id: 'notif-1', userId: 'client-carole', message: 'Votre affaire CASE-004 a été clôturée.', read: false, date: '2024-03-15' },
+    { id: 'notif-2', userId: 'client-alice', message: 'Rappel: Rendez-vous le 10/07/2024 à 10:00 avec Maître Dupont.', read: false, date: '2024-07-09' },
+    { id: 'notif-3', userId: 'client-alice', message: 'Un nouveau document a été ajouté à votre affaire CASE-001.', read: true, date: '2024-05-18' },
+];
+
+export const invoices: Invoice[] = [
+    { id: 'inv-1', clientId: 'client-alice', caseId: '1', caseNumber: 'CASE-001', number: 'FACT-2024-001', date: '2024-05-01', amount: 750.00, status: 'En attente' },
+    { id: 'inv-2', clientId: 'client-alice', caseId: '1', caseNumber: 'CASE-001', number: 'FACT-2024-002', date: '2024-06-01', amount: 500.00, status: 'En attente' },
+    { id: 'inv-3', clientId: 'client-carole', caseId: '4', caseNumber: 'CASE-004', number: 'FACT-2024-003', date: '2024-03-20', amount: 1500.00, status: 'Payée' },
+];
+
 export const user = {
   lawyer,
   clients,
+  notifications,
   // We can imagine a login system would set the current user
   currentUser: clients[0], 
 };

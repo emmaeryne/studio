@@ -4,6 +4,8 @@ import { summarizeCaseDocuments } from '@/ai/flows/summarize-case-documents';
 import type { SummarizeCaseDocumentsInput } from '@/ai/flows/summarize-case-documents';
 import { askChatbot } from '@/ai/flows/chatbot';
 import type { ChatbotInput } from '@/ai/flows/chatbot';
+import { estimateCaseCost } from '@/ai/flows/estimate-case-cost';
+import type { EstimateCaseCostInput, EstimateCaseCostOutput } from '@/ai/flows/estimate-case-cost';
 import { cases, user, type CaseDocument, conversations, type Lawyer, type Message, type Client, appointments as allAppointments, type Case, type Appointment } from './data';
 import { revalidatePath } from 'next/cache';
 
@@ -114,6 +116,16 @@ export async function getChatbotResponse(input: ChatbotInput) {
     console.error(error);
     return { success: false, error: 'La réponse du chatbot a échoué.' };
   }
+}
+
+export async function getCaseCostEstimate(input: EstimateCaseCostInput): Promise<{success: boolean, estimate?: EstimateCaseCostOutput, error?: string}> {
+    try {
+        const result = await estimateCaseCost(input);
+        return { success: true, estimate: result };
+    } catch (error) {
+        console.error(error);
+        return { success: false, error: 'L\'estimation du coût a échoué.' };
+    }
 }
 
 export async function sendMessage(conversationId: string, content: string) {
