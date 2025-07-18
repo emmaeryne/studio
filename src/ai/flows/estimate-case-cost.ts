@@ -7,13 +7,13 @@ import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 import type { Case } from '@/lib/data';
 
-export const EstimateCaseCostInputSchema = z.object({
+const EstimateCaseCostInputSchema = z.object({
   caseType: z.enum(['Litige civil', 'Droit pénal', 'Droit de la famille', 'Droit des sociétés', 'Autre']),
   description: z.string().describe('A detailed description of the legal case.'),
 });
 export type EstimateCaseCostInput = z.infer<typeof EstimateCaseCostInputSchema>;
 
-export const EstimateCaseCostOutputSchema = z.object({
+const EstimateCaseCostOutputSchema = z.object({
     estimatedCost: z.string().describe("The estimated cost for the case, formatted as a currency string (e.g., '1,500€ - 3,000€')."),
     justification: z.string().describe('A brief justification for the estimated cost, explaining the factors considered.')
 });
