@@ -1,7 +1,7 @@
 // A component for the notification bell in the header.
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Popover,
   PopoverContent,
@@ -10,22 +10,25 @@ import {
 import { Button } from "@/components/ui/button";
 import { Bell, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-type Notification = {
-  id: string;
-  userId: string;
-  message: string;
-  read: boolean;
-  date: string;
-};
+import type { Notification } from "@/lib/data";
 
 export function NotificationBell({
   notifications: initialNotifications,
+  userId,
 }: {
   notifications: Notification[];
+  userId: string;
 }) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState(initialNotifications);
+
+  useEffect(() => {
+    // This is a mock to simulate real-time updates.
+    // In a real app, you would use WebSockets or a similar technology.
+    const filteredNotifications = initialNotifications.filter(n => n.userId === userId);
+    setNotifications(filteredNotifications);
+  }, [initialNotifications, userId]);
+
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -59,9 +62,9 @@ export function NotificationBell({
              </Button>
           )}
         </div>
-        <div className="mt-2 space-y-1">
+        <div className="mt-2 space-y-1 max-h-80 overflow-y-auto">
           {notifications.length > 0 ? (
-            notifications.map((notification) => (
+            [...notifications].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((notification) => (
               <div
                 key={notification.id}
                 className={cn(

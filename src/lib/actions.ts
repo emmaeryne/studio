@@ -6,7 +6,7 @@ import { askChatbot } from '@/ai/flows/chatbot';
 import type { ChatbotInput } from '@/ai/flows/chatbot';
 import { estimateCaseCost } from '@/ai/flows/estimate-case-cost';
 import type { EstimateCaseCostInput, EstimateCaseCostOutput } from '@/ai/flows/estimate-case-cost';
-import { cases, user, type CaseDocument, conversations, type Lawyer, type Message, type Client, appointments as allAppointments, type Case, type Appointment } from './data';
+import { cases, user, type CaseDocument, conversations, type Lawyer, type Message, type Client, appointments as allAppointments, type Case, type Appointment, invoices, notifications } from './data';
 import { revalidatePath } from 'next/cache';
 
 export async function getSummary(input: SummarizeCaseDocumentsInput) {
@@ -239,5 +239,33 @@ export async function updateAppointmentStatus(appointmentId: string, status: 'Co
     } catch(error) {
         console.error(error);
         return { success: false, error: 'Impossible de mettre à jour le statut du rendez-vous' };
+    }
+}
+
+export async function makePayment(invoiceId: string) {
+    try {
+        const invoice = invoices.find(inv => inv.id === invoiceId);
+        if(!invoice) {
+            return { success: false, error: "Facture non trouvée." };
+        }
+        invoice.status = 'Payée';
+        
+        // Notify the lawyer
+        const lawyerId = user.lawyer.email; // In a real app this might be an ID.
+        notifications.push({
+            id: `notif-${Date.now()}`,
+            userId: lawyerId,
+            message: `Paiement de ${invoice.amount.toFixed(2)}€ reçu pour la facture ${invoice.number} (${invoice.caseNumber}).`,
+            read: false,
+            date: new Date().toISOString()
+        });
+
+        revalidatePath('/client/payments');
+        revalidatePath('/dashboard/layout'); // To update lawyer's notification bell
+        return { success: true };
+
+    } catch (error) {
+        console.error(error);
+        return { success: false, error: "Le paiement a échoué." };
     }
 }

@@ -71,7 +71,7 @@ export function RequestAppointmentDialog({ children, cases }: { children: React.
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Demander un rendez-vous</DialogTitle>
           <DialogDescription>
@@ -94,7 +94,7 @@ export function RequestAppointmentDialog({ children, cases }: { children: React.
                 </div>
                 <div>
                      <Label className='mb-2 block'>Heure</Label>
-                     <RadioGroup name="time" className="grid grid-cols-2 gap-2">
+                     <RadioGroup name="time" required className="grid grid-cols-2 gap-2">
                         {availableTimeSlots.map(time => (
                             <div key={time}>
                                 <RadioGroupItem value={time} id={`time-${time}`} className='peer sr-only'/>

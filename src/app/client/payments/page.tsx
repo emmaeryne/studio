@@ -19,26 +19,39 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { invoices as initialInvoices, user } from "@/lib/data";
+import { invoices as initialInvoices, user, type Invoice } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { CreditCard, CheckCircle } from "lucide-react";
+import { PaymentDialog } from "@/components/payment-dialog";
+import { makePayment } from "@/lib/actions";
 
 export default function ClientPaymentsPage() {
   const [invoices, setInvoices] = useState(initialInvoices.filter(inv => inv.clientId === user.currentUser.id));
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const { toast } = useToast();
 
-  const handlePayment = (invoiceId: string) => {
+  const handlePaymentSuccess = async (invoiceId: string) => {
     // In a real application, this would integrate with a payment provider.
     // For now, we'll just simulate the payment.
-    setInvoices(
-      invoices.map((inv) =>
-        inv.id === invoiceId ? { ...inv, status: "Payée" } : inv
-      )
-    );
-    toast({
-      title: "Paiement Réussi",
-      description: "Votre facture a été payée avec succès.",
-    });
+    const res = await makePayment(invoiceId);
+    if (res.success) {
+        setInvoices(
+          invoices.map((inv) =>
+            inv.id === invoiceId ? { ...inv, status: "Payée" } : inv
+          )
+        );
+        toast({
+          title: "Paiement Réussi",
+          description: "Votre facture a été payée avec succès.",
+        });
+        setSelectedInvoice(null); // Close the dialog
+    } else {
+        toast({
+            variant: "destructive",
+            title: "Erreur de paiement",
+            description: res.error,
+        });
+    }
   };
   
   const getStatusVariant = (status: 'Payée' | 'En attente') => {
@@ -50,6 +63,13 @@ export default function ClientPaymentsPage() {
   }
 
   return (
+    <>
+    <PaymentDialog 
+        isOpen={!!selectedInvoice} 
+        onClose={() => setSelectedInvoice(null)}
+        invoice={selectedInvoice}
+        onPaymentConfirm={handlePaymentSuccess}
+    />
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl md:text-3xl font-headline font-bold">Mes Paiements</h1>
       <Card>
@@ -83,7 +103,7 @@ export default function ClientPaymentsPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     {invoice.status === "En attente" ? (
-                      <Button onClick={() => handlePayment(invoice.id)} size="sm">
+                      <Button onClick={() => setSelectedInvoice(invoice)} size="sm">
                         <CreditCard className="mr-2 h-4 w-4" />
                         Payer maintenant
                       </Button>
@@ -108,5 +128,6 @@ export default function ClientPaymentsPage() {
         </CardContent>
       </Card>
     </div>
+    </>
   );
 }

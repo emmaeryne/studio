@@ -48,6 +48,13 @@ export function AddClientCaseDialog({ children }: { children: React.ReactNode })
     }
 
     try {
+      // Then, submit the case
+      await addClientCase(newCase);
+      toast({
+        title: 'Affaire Soumise',
+        description: `Votre nouvelle affaire a été soumise avec succès.`,
+      });
+      
       // First, get the cost estimate
       const estimateResult = await getCaseCostEstimate(newCase);
       if (estimateResult.success && estimateResult.estimate) {
@@ -57,18 +64,10 @@ export function AddClientCaseDialog({ children }: { children: React.ReactNode })
          toast({
           variant: 'destructive',
           title: 'Erreur d\'estimation',
-          description: "Impossible d'estimer le coût, mais votre affaire sera soumise.",
+          description: "Impossible d'estimer le coût, mais votre affaire a bien été soumise.",
         });
       }
 
-      // Then, submit the case
-      await addClientCase(newCase);
-      toast({
-        title: 'Affaire Soumise',
-        description: `Votre nouvelle affaire a été soumise avec succès.`,
-      });
-      // Don't close the dialog immediately, show the estimate instead.
-      // setOpen(false);
       router.refresh(); 
     } catch (error) {
       toast({
@@ -81,18 +80,21 @@ export function AddClientCaseDialog({ children }: { children: React.ReactNode })
     }
   };
 
-  const resetAndClose = () => {
-    setOpen(false);
-    setEstimate(null);
-    setIsLoading(false);
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      // Reset state when closing
+      setEstimate(null);
+      setIsLoading(false);
+    }
+    setOpen(isOpen);
   }
 
   return (
-    <Dialog open={open} onOpenChange={resetAndClose}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{estimate ? "Affaire Soumise" : "Soumettre une nouvelle affaire"}</DialogTitle>
+          <DialogTitle>{estimate ? "Affaire Soumise & Estimation" : "Soumettre une nouvelle affaire"}</DialogTitle>
           <DialogDescription>
             {estimate 
             ? "Votre affaire a été soumise. Voici une estimation préliminaire des coûts."
@@ -112,7 +114,7 @@ export function AddClientCaseDialog({ children }: { children: React.ReactNode })
                     </AlertDescription>
                 </Alert>
                 <DialogFooter>
-                    <Button onClick={resetAndClose}>Fermer</Button>
+                    <Button onClick={() => handleOpenChange(false)}>Fermer</Button>
                 </DialogFooter>
             </div>
         ) : (

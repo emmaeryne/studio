@@ -21,14 +21,20 @@ import {
 } from "@/components/ui/sidebar";
 import { user } from "@/lib/data";
 import { DashboardNav } from "@/components/dashboard-nav";
-import { Bell, Briefcase, Search } from "lucide-react";
+import { Briefcase, Search } from "lucide-react";
 import { Chatbot } from "@/components/chatbot";
+import { NotificationBell } from "@/components/notification-bell";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+
+  const lawyerUser = user.lawyer;
+  const notifications = user.notifications.filter(n => n.userId === lawyerUser.email);
+
+
   return (
     <SidebarProvider>
       <div className="min-h-screen">
@@ -66,10 +72,7 @@ export default function DashboardLayout({
                 </form> */}
               </div>
               <Chatbot />
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <Bell className="h-5 w-5" />
-                <span className="sr-only">Toggle notifications</span>
-              </Button>
+              <NotificationBell userId={lawyerUser.email} notifications={notifications} />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="secondary" size="icon" className="rounded-full">

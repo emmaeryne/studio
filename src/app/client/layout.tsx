@@ -54,7 +54,7 @@ export default function ClientLayout({
             Messages
           </Link>
            <RequestAppointmentDialog cases={clientCases}>
-             <Button variant="link" className="text-muted-foreground p-0 h-auto">
+             <Button variant="link" className="text-muted-foreground p-0 h-auto font-normal">
                 Rendez-vous
              </Button>
            </RequestAppointmentDialog>
@@ -63,7 +63,7 @@ export default function ClientLayout({
             <div className="ml-auto flex-1 sm:flex-initial">
                  <Chatbot />
             </div>
-              <NotificationBell notifications={notifications} />
+              <NotificationBell userId={clientUser.id} notifications={notifications} />
             <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" size="icon" className="rounded-full">
