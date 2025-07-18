@@ -9,10 +9,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowLeft, Briefcase, Calendar, Clock, FileText } from "lucide-react";
+import { ArrowLeft, Briefcase, Calendar, Clock, FileText, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { ClientDocumentUploader } from "@/components/client-document-uploader";
 import { RequestAppointmentDialog } from "@/components/request-appointment-dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function ClientCaseDetailPage({ params }: { params: { id: string } }) {
   const clientUser = user.currentUser;
@@ -22,6 +23,13 @@ export default function ClientCaseDetailPage({ params }: { params: { id: string 
     notFound();
   }
   
+  // The estimate is temporarily stored on the case object after creation.
+  // We show it once, and then it can be "cleared" in a real app.
+  const estimate = caseItem._estimate;
+  if(caseItem._estimate) {
+    delete caseItem._estimate;
+  }
+
   const getStatusVariant = (status: string) => {
     switch (status) {
       case 'Nouveau': return 'destructive';
@@ -61,6 +69,18 @@ export default function ClientCaseDetailPage({ params }: { params: { id: string 
             <Badge variant={getStatusVariant(caseItem.status)}>{caseItem.status}</Badge>
         </div>
       </div>
+
+      {estimate && (
+        <Alert>
+            <Wand2 className="h-4 w-4" />
+            <AlertTitle>Affaire Soumise & Estimation du Coût</AlertTitle>
+            <AlertDescription>
+                <p className="text-2xl font-bold text-primary">{estimate.estimatedCost}</p>
+                <p className='mt-2'>{estimate.justification}</p>
+                <p className='mt-2 text-xs text-muted-foreground'>Ceci est une estimation préliminaire générée par l'IA. Votre avocat vous fournira un devis détaillé.</p>
+            </AlertDescription>
+        </Alert>
+      )}
       
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">

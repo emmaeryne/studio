@@ -33,6 +33,7 @@ export type Case = {
   documents: CaseDocument[];
   appointments: Omit<Appointment, 'caseId'>[];
   keyDeadlines: Deadline[];
+  _estimate?: CaseCostEstimate; // Temporary field for estimate
 };
 
 export type CaseCostEstimate = {

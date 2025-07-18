@@ -8,6 +8,7 @@ import { estimateCaseCost } from '@/ai/flows/estimate-case-cost';
 import type { EstimateCaseCostInput, EstimateCaseCostOutput } from '@/ai/flows/estimate-case-cost';
 import { cases, user, type CaseDocument, conversations, type Lawyer, type Message, type Client, appointments as allAppointments, type Case, type Appointment, invoices, notifications } from './data';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 
 export async function getSummary(input: SummarizeCaseDocumentsInput) {
   try {
@@ -57,39 +58,43 @@ export async function addCase(newCase: { clientName: string; caseType: Case['cas
 }
 
 export async function addClientCase(newCase: { caseType: Case['caseType']; description: string }) {
+    // In a real app, current user would come from session
+    const currentUser = user.currentUser;
+
+    const nextId = (Math.max(...cases.map(c => parseInt(c.id))) + 1).toString();
+    const nextCaseNumber = `CASE-${String(cases.length + 1).padStart(3, '0')}`;
+    const currentDate = new Date().toISOString().split('T')[0];
+    
+    let caseEstimate: EstimateCaseCostOutput | null = null;
     try {
-        // In a real app, current user would come from session
-        const currentUser = user.currentUser;
-
-        const nextId = (Math.max(...cases.map(c => parseInt(c.id))) + 1).toString();
-        const nextCaseNumber = `CASE-${String(cases.length + 1).padStart(3, '0')}`;
-        const currentDate = new Date().toISOString().split('T')[0];
-
-        cases.push({
-            id: nextId,
-            caseNumber: nextCaseNumber,
-            clientName: currentUser.name,
-            clientId: currentUser.id,
-            clientAvatar: currentUser.avatar,
-            caseType: newCase.caseType,
-            status: 'Nouveau',
-            submittedDate: currentDate,
-            lastUpdate: currentDate,
-            description: newCase.description,
-            documents: [],
-            appointments: [],
-            keyDeadlines: [],
-        });
-        
-        // Revalidate both the list page and the new detail page path
-        revalidatePath('/client/cases');
-        revalidatePath(`/client/cases/${nextId}`);
-
-        return { success: true, newCaseId: nextId };
-    } catch (error) {
-        console.error(error);
-        return { success: false, error: 'Failed to add case.' };
+        caseEstimate = await estimateCaseCost(newCase);
+    } catch(e) {
+        console.error("Failed to get estimate", e);
     }
+
+    const newCaseData: Case = {
+        id: nextId,
+        caseNumber: nextCaseNumber,
+        clientName: currentUser.name,
+        clientId: currentUser.id,
+        clientAvatar: currentUser.avatar,
+        caseType: newCase.caseType,
+        status: 'Nouveau',
+        submittedDate: currentDate,
+        lastUpdate: currentDate,
+        description: newCase.description,
+        documents: [],
+        appointments: [],
+        keyDeadlines: [],
+        // Temporary store the estimate to show on the detail page
+        _estimate: caseEstimate ?? undefined,
+    };
+    cases.push(newCaseData);
+    
+    revalidatePath('/client/cases');
+    revalidatePath(`/client/cases/${nextId}`);
+
+    redirect(`/client/cases/${nextId}`);
 }
 
 
