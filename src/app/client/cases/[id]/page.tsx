@@ -9,8 +9,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowLeft, Briefcase, Calendar, Clock, Download, FileText, Upload } from "lucide-react";
+import { ArrowLeft, Briefcase, Calendar, Clock, FileText } from "lucide-react";
 import Link from "next/link";
+import { ClientDocumentUploader } from "@/components/client-document-uploader";
 
 export default function ClientCaseDetailPage({ params }: { params: { id: string } }) {
   const clientUser = user.currentUser;
@@ -61,10 +62,15 @@ export default function ClientCaseDetailPage({ params }: { params: { id: string 
                 <p className="text-sm text-muted-foreground">{caseItem.description}</p>
             </CardContent>
           </Card>
-           <Card>
-            <CardHeader>
+          
+          <ClientDocumentUploader caseItem={caseItem} />
+
+        </div>
+
+        <div className="space-y-6">
+          <Card>
+             <CardHeader>
               <CardTitle className="font-headline flex items-center gap-2"><FileText className="h-5 w-5 text-primary"/>Documents</CardTitle>
-              <CardDescription>Consultez ou ajoutez des documents relatifs à votre affaire.</CardDescription>
             </CardHeader>
             <CardContent>
                <ul className="space-y-3 text-sm">
@@ -74,24 +80,16 @@ export default function ClientCaseDetailPage({ params }: { params: { id: string 
                         <FileText className="h-4 w-4"/>
                         {doc.name}
                     </Link>
-                    <Button variant="ghost" size="sm">
-                        <Download className="h-4 w-4 mr-2"/>
-                        Télécharger
+                    <Button variant="ghost" size="sm" asChild>
+                        <a href={doc.url} download={doc.name}>
+                            Télécharger
+                        </a>
                     </Button>
                   </li>
                 )) : <p className="text-muted-foreground text-center py-4">Aucun document pour cette affaire.</p>}
               </ul>
-              <div className="mt-4 flex justify-start">
-                  <Button variant="outline">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Ajouter un document
-                  </Button>
-              </div>
             </CardContent>
           </Card>
-        </div>
-
-        <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="font-headline flex items-center gap-2"><Clock className="h-5 w-5 text-primary"/>Échéances Clés</CardTitle>

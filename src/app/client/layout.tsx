@@ -10,7 +10,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { user } from "@/lib/data";
-import { Bell, Briefcase, Bot, FileText, LayoutDashboard, MessageSquare } from "lucide-react";
+import { Bell, Briefcase, FileText, LayoutDashboard, MessageSquare } from "lucide-react";
+import { Chatbot } from "@/components/chatbot";
 
 export default function ClientLayout({
   children,
@@ -43,7 +44,7 @@ export default function ClientLayout({
             Mes Affaires
           </Link>
           <Link
-            href="#"
+            href="/dashboard/messages" // Re-using the same message page for simplicity
             className="text-muted-foreground transition-colors hover:text-foreground"
           >
             Messages
@@ -57,12 +58,8 @@ export default function ClientLayout({
         </nav>
         <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
             <div className="ml-auto flex-1 sm:flex-initial">
-                 {/* AI Chatbot button could go here */}
+                 <Chatbot />
             </div>
-             <Button variant="ghost" size="icon" className="rounded-full">
-                <Bot className="h-5 w-5" />
-                <span className="sr-only">Toggle AI Chatbot</span>
-              </Button>
               <Button variant="ghost" size="icon" className="rounded-full">
                 <Bell className="h-5 w-5" />
                 <span className="sr-only">Toggle notifications</span>
@@ -80,7 +77,9 @@ export default function ClientLayout({
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>{clientUser.name}</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Profil</DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/profile">Profil</Link>
+              </DropdownMenuItem>
               <DropdownMenuItem>Paiements</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>

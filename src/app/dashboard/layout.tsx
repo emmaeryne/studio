@@ -21,7 +21,8 @@ import {
 } from "@/components/ui/sidebar";
 import { user } from "@/lib/data";
 import { DashboardNav } from "@/components/dashboard-nav";
-import { Bell, Briefcase, Bot, Search } from "lucide-react";
+import { Bell, Briefcase, Search } from "lucide-react";
+import { Chatbot } from "@/components/chatbot";
 
 export default function DashboardLayout({
   children,
@@ -64,10 +65,7 @@ export default function DashboardLayout({
                   </div>
                 </form> */}
               </div>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <Bot className="h-5 w-5" />
-                <span className="sr-only">Toggle AI Chatbot</span>
-              </Button>
+              <Chatbot />
               <Button variant="ghost" size="icon" className="rounded-full">
                 <Bell className="h-5 w-5" />
                 <span className="sr-only">Toggle notifications</span>

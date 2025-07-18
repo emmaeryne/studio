@@ -1,20 +1,65 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { conversations, user } from '@/lib/data';
+import { conversations as initialConversations, user } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { SendHorizonal, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { sendMessage } from '@/lib/actions';
 
 export default function MessagesPage() {
+  const [conversations, setConversations] = useState(initialConversations);
   const [selectedConversationId, setSelectedConversationId] = useState(conversations[0].id);
+  const [newMessage, setNewMessage] = useState('');
+  const { toast } = useToast();
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
 
   const selectedConversation = conversations.find(c => c.id === selectedConversationId)!;
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim()) return;
+
+    const res = await sendMessage(selectedConversation.id, newMessage);
+
+    if (res.success) {
+      const updatedConversations = conversations.map(c => {
+        if (c.id === selectedConversation.id) {
+          return {
+            ...c,
+            messages: [...c.messages, res.newMessage!]
+          }
+        }
+        return c;
+      });
+      setConversations(updatedConversations);
+      setNewMessage('');
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Erreur',
+        description: res.error
+      })
+    }
+  }
+
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+        // A bit of a hack to get the viewport
+        const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
+        if (viewport) {
+             viewport.scrollTop = viewport.scrollHeight;
+        }
+    }
+  }, [selectedConversation?.messages.length, selectedConversationId]);
+
 
   return (
     <div className="flex flex-col h-[calc(100vh-10rem)]">
@@ -70,7 +115,7 @@ export default function MessagesPage() {
                 </div>
             </div>
           </CardHeader>
-          <ScrollArea className="flex-1 p-4">
+          <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
             <div className="space-y-4">
               {selectedConversation.messages.map(message => (
                 <div key={message.id} className={cn(
@@ -101,12 +146,17 @@ export default function MessagesPage() {
             </div>
           </ScrollArea>
           <CardContent className="p-4 border-t">
-            <div className="relative">
-              <Input placeholder="Écrire un message..." className="pr-12" />
-              <Button size="icon" variant="ghost" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8">
+            <form onSubmit={handleSendMessage} className="relative">
+              <Input 
+                placeholder="Écrire un message..." 
+                className="pr-12" 
+                value={newMessage}
+                onChange={e => setNewMessage(e.target.value)}
+                />
+              <Button type="submit" size="icon" variant="ghost" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8">
                 <SendHorizonal className="h-5 w-5 text-muted-foreground" />
               </Button>
-            </div>
+            </form>
           </CardContent>
         </Card>
       </div>

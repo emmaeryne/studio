@@ -1,3 +1,4 @@
+"use client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,11 +10,35 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { user } from "@/lib/data";
+import { useToast } from "@/hooks/use-toast";
+import { updateLawyerProfile } from "@/lib/actions";
+import { user as initialUser } from "@/lib/data";
 import { User, Mail, Building } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function ProfilePage() {
-  const lawyer = user.lawyer;
+  const [lawyer, setLawyer] = useState(initialUser.lawyer);
+  const { toast } = useToast();
+  const router = useRouter();
+
+  const handleSave = async () => {
+    const res = await updateLawyerProfile(lawyer);
+    if(res.success) {
+      toast({
+        title: "Profil mis à jour",
+        description: "Vos informations ont été enregistrées avec succès."
+      });
+      router.refresh();
+    } else {
+       toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible de mettre à jour le profil."
+      });
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl md:text-3xl font-headline font-bold">Profil</h1>
@@ -57,23 +82,23 @@ export default function ProfilePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="fullName">Nom complet</Label>
-                <Input id="fullName" defaultValue={lawyer.name} />
+                <Input id="fullName" value={lawyer.name} onChange={(e) => setLawyer({...lawyer, name: e.target.value})} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Adresse e-mail</Label>
-                <Input id="email" type="email" defaultValue={lawyer.email} />
+                <Input id="email" type="email" value={lawyer.email} onChange={(e) => setLawyer({...lawyer, email: e.target.value})}/>
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="role">Rôle</Label>
-              <Input id="role" defaultValue={lawyer.role} disabled />
+              <Input id="role" value={lawyer.role} disabled />
             </div>
             <div className="space-y-2">
               <Label htmlFor="specialty">Spécialité</Label>
               <Input id="specialty" defaultValue="Droit de la famille, Droit pénal" />
             </div>
              <div className="flex justify-end pt-2">
-                <Button>Enregistrer les modifications</Button>
+                <Button onClick={handleSave}>Enregistrer les modifications</Button>
             </div>
           </CardContent>
         </Card>

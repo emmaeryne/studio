@@ -50,6 +50,13 @@ export type Conversation = {
     messages: Message[];
 };
 
+export type Lawyer = {
+    name: string;
+    email: string;
+    role: string;
+    avatar: string;
+}
+
 export const cases: Case[] = [
   {
     id: '1',
@@ -131,7 +138,7 @@ export const cases: Case[] = [
   },
 ];
 
-const lawyer = {
+const lawyer: Lawyer = {
     name: 'Maître Dupont',
     email: 'm.dupont@cabinet-legal.fr',
     role: 'Avocat',
