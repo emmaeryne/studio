@@ -32,12 +32,12 @@ export function AddClientCaseDialog({ children }: { children: React.ReactNode })
     event.preventDefault();
     setIsLoading(true);
     const formData = new FormData(event.currentTarget);
-    const newCase = {
+    const newCaseData = {
       caseType: formData.get('caseType') as Case['caseType'],
       description: formData.get('description') as string,
     };
 
-    if (!newCase.caseType || !newCase.description) {
+    if (!newCaseData.caseType || !newCaseData.description) {
         toast({
             variant: 'destructive',
             title: 'Champs requis',
@@ -48,19 +48,25 @@ export function AddClientCaseDialog({ children }: { children: React.ReactNode })
     }
 
     try {
-      // Then, submit the case
-      await addClientCase(newCase);
+      // Submit the case and get the new case ID back
+      const result = await addClientCase(newCaseData);
+      
+      if (!result.success || !result.newCaseId) {
+        throw new Error(result.error || "Failed to create case.");
+      }
+      
+      const newCaseId = result.newCaseId;
+
       toast({
         title: 'Affaire Soumise',
         description: `Votre nouvelle affaire a été soumise avec succès.`,
       });
       
-      // First, get the cost estimate
-      const estimateResult = await getCaseCostEstimate(newCase);
+      // Get the cost estimate
+      const estimateResult = await getCaseCostEstimate(newCaseData);
       if (estimateResult.success && estimateResult.estimate) {
         setEstimate(estimateResult.estimate);
       } else {
-        // Continue even if estimate fails, but notify user
          toast({
           variant: 'destructive',
           title: 'Erreur d\'estimation',
@@ -68,16 +74,21 @@ export function AddClientCaseDialog({ children }: { children: React.ReactNode })
         });
       }
 
-      router.refresh(); 
+      // Redirect to the new case detail page after a short delay to show the toast
+      setTimeout(() => {
+        setOpen(false);
+        router.push(`/client/cases/${newCaseId}`);
+      }, 1000); // 1-second delay
+
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Erreur',
         description: "Impossible de soumettre la nouvelle affaire.",
       });
-    } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
+    // No finally block for setIsLoading(false) because we navigate away on success
   };
 
   const handleOpenChange = (isOpen: boolean) => {
@@ -113,9 +124,7 @@ export function AddClientCaseDialog({ children }: { children: React.ReactNode })
                         <p className='mt-2 text-xs text-muted-foreground'>Ceci est une estimation générée par l'IA. Votre avocat vous fournira un devis détaillé.</p>
                     </AlertDescription>
                 </Alert>
-                <DialogFooter>
-                    <Button onClick={() => handleOpenChange(false)}>Fermer</Button>
-                </DialogFooter>
+                 <p className='text-center text-sm text-muted-foreground'>Vous allez être redirigé...</p>
             </div>
         ) : (
             <form onSubmit={handleSubmit}>

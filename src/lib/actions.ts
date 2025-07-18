@@ -82,7 +82,7 @@ export async function addClientCase(newCase: { caseType: Case['caseType']; descr
         });
         revalidatePath('/client/cases');
         revalidatePath(`/client/cases/${nextId}`);
-        return { success: true };
+        return { success: true, newCaseId: nextId };
     } catch (error) {
         console.error(error);
         return { success: false, error: 'Failed to add case.' };
