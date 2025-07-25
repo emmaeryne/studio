@@ -19,26 +19,38 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CaseDocumentUploader } from "@/components/case-document-uploader";
-import { ArrowLeft, Briefcase, Calendar, Clock, FileText, User } from "lucide-react";
+import { ArrowLeft, Briefcase, FileText, Clock } from "lucide-react";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { updateCaseStatus } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
 import type { Case } from "@/lib/data";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function CaseDetailPage({ params: { id } }: { params: { id: string } }) {
-  const initialCase = cases.find((c) => c.id === id);
   const { toast } = useToast();
   
   // Use state to manage the case item for real-time updates on the page
-  const [caseItem, setCaseItem] = useState(initialCase);
+  const [caseItem, setCaseItem] = useState<Case | undefined>(() => cases.find((c) => c.id === id));
+  
+  useEffect(() => {
+    // If the case is not found initially or id changes, update the state
+    setCaseItem(cases.find((c) => c.id === id));
+  }, [id]);
 
   if (!caseItem) {
+    // This part will be executed on the server during the initial render,
+    // and on the client if the case isn't found after useEffect.
+    // notFound() should only be called from server components,
+    // so we return a friendly message on the client.
+    if (typeof window !== 'undefined') {
+        return <p>Affaire non trouvée.</p>;
+    }
     notFound();
   }
 
   const handleStatusChange = async (newStatus: Case['status']) => {
+    if (!caseItem) return;
     const result = await updateCaseStatus(caseItem.id, newStatus);
     if (result.success && result.updatedCase) {
         setCaseItem(result.updatedCase as Case);
@@ -92,7 +104,7 @@ export default function CaseDetailPage({ params: { id } }: { params: { id: strin
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                     {allStatuses.map(status => (
-                        <DropdownMenuItem key={status} onSelect={() => handleStatusChange(status)}>
+                        <DropdownMenuItem key={status} onSelect={() => handleStatusChange(status)} disabled={caseItem?.status === status}>
                             {status}
                         </DropdownMenuItem>
                     ))}
@@ -139,8 +151,10 @@ export default function CaseDetailPage({ params: { id } }: { params: { id: strin
                         <FileText className="h-4 w-4"/>
                         {doc.name}
                     </Link>
-                    <Button variant="ghost" size="sm">
-                        Télécharger
+                    <Button variant="ghost" size="sm" asChild>
+                       <a href={doc.url} download={doc.name}>
+                            Télécharger
+                       </a>
                     </Button>
                   </li>
                 )) : <p className="text-muted-foreground text-center py-4">Aucun document pour cette affaire.</p>}
@@ -161,7 +175,7 @@ export default function CaseDetailPage({ params: { id } }: { params: { id: strin
                         <p className="text-muted-foreground">{deadline.description}</p>
                     </div>
                   </li>
-                )) : <p className="text-muted-foreground">Aucune échéance.</p>}
+                )) : <p className="text-muted-foreground text-center py-4">Aucune échéance.</p>}
               </ul>
             </CardContent>
           </Card>

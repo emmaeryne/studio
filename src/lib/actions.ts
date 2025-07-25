@@ -22,13 +22,15 @@ export async function getSummary(input: SummarizeCaseDocumentsInput) {
 
 export async function addCase(newCase: { clientName: string; caseType: Case['caseType']; description: string }) {
     try {
-        const nextId = (Math.max(...cases.map(c => parseInt(c.id))) + 1).toString();
+        const nextId = (Math.max(0, ...cases.map(c => parseInt(c.id))) + 1).toString();
         const nextCaseNumber = `CASE-${String(cases.length + 1).padStart(3, '0')}`;
         const currentDate = new Date().toISOString().split('T')[0];
 
         // This is a mock association. In a real app, you'd link to a real client ID.
         const client = user.clients.find(c => c.name === newCase.clientName) || {
-            id: `client-${newCase.clientName.toLowerCase().split(' ')[0]}`,
+            id: `client-${newCase.clientName.toLowerCase().replace(/\s/g, '-')}`,
+            name: newCase.clientName,
+            email: `${newCase.clientName.toLowerCase().replace(/\s/g, '.')}@email.com`,
             avatar: `https://placehold.co/100x100.png?text=${newCase.clientName.charAt(0)}`
         };
 
@@ -61,7 +63,7 @@ export async function addClientCase(newCase: { caseType: Case['caseType']; descr
     // In a real app, current user would come from session
     const currentUser = user.currentUser;
 
-    const nextId = (Math.max(...cases.map(c => parseInt(c.id))) + 1).toString();
+    const nextId = (Math.max(0, ...cases.map(c => parseInt(c.id))) + 1).toString();
     const nextCaseNumber = `CASE-${String(cases.length + 1).padStart(3, '0')}`;
     const currentDate = new Date().toISOString().split('T')[0];
     
@@ -211,7 +213,8 @@ export async function requestAppointment(appointmentData: { caseId: string, date
         allAppointments.push({ ...newAppointment, clientName: caseItem.clientName });
         
         revalidatePath('/dashboard/calendar');
-        revalidatePath('/client/cases');
+        revalidatePath('/dashboard');
+        revalidatePath(`/client/cases/${caseItem.id}`);
         return { success: true }
     } catch(error) {
         console.error(error);
@@ -221,44 +224,44 @@ export async function requestAppointment(appointmentData: { caseId: string, date
 
 export async function updateAppointmentStatus(appointmentId: string, status: 'Confirmé' | 'Annulé') {
     try {
-        let appointmentToUpdate: (Appointment & {clientName?: string}) | undefined;
+        let updatedAppointment: (Appointment & {clientName?: string}) | undefined;
         let caseToUpdate: Case | undefined;
 
         // Find in global list
-        const globalAppointment = allAppointments.find(a => a.id === appointmentId);
-        if(globalAppointment) {
-            globalAppointment.status = status;
-            appointmentToUpdate = globalAppointment;
+        const globalAppointmentIndex = allAppointments.findIndex(a => a.id === appointmentId);
+        if(globalAppointmentIndex > -1) {
+            allAppointments[globalAppointmentIndex].status = status;
+            updatedAppointment = allAppointments[globalAppointmentIndex];
         }
 
         // Find in case-specific list
         for (const caseItem of cases) {
-            const caseAppointment = caseItem.appointments.find(a => a.id === appointmentId);
-            if (caseAppointment) {
-                caseAppointment.status = status;
+            const caseAppointmentIndex = caseItem.appointments.findIndex(a => a.id === appointmentId);
+            if (caseAppointmentIndex > -1) {
+                caseItem.appointments[caseAppointmentIndex].status = status;
                 caseToUpdate = caseItem;
                 break;
             }
         }
 
-        if (appointmentToUpdate && caseToUpdate) {
+        if (updatedAppointment && caseToUpdate) {
             // Create a notification for the client
             const client = user.clients.find(c => c.id === caseToUpdate?.clientId);
             if (client) {
                  notifications.push({
                     id: `notif-${Date.now()}`,
                     userId: client.id,
-                    message: `Votre rendez-vous du ${new Date(appointmentToUpdate.date).toLocaleDateString()} à ${appointmentToUpdate.time} a été ${status.toLowerCase()}.`,
+                    message: `Votre rendez-vous du ${new Date(updatedAppointment.date).toLocaleDateString()} à ${updatedAppointment.time} a été ${status === 'Confirmé' ? 'confirmé' : 'annulé'}.`,
                     read: false,
                     date: new Date().toISOString()
                 });
             }
 
             revalidatePath('/dashboard/calendar');
+            revalidatePath('/dashboard');
             revalidatePath(`/client/cases/${caseToUpdate.id}`);
             revalidatePath(`/client/layout`); // To update notification bell
-            revalidatePath('/dashboard');
-            return { success: true };
+            return { success: true, updatedAppointment };
         }
 
         return { success: false, error: 'Rendez-vous non trouvé' };
@@ -298,11 +301,12 @@ export async function makePayment(invoiceId: string) {
 
 export async function updateCaseStatus(caseId: string, newStatus: Case['status']) {
     try {
-        const caseItem = cases.find(c => c.id === caseId);
-        if (!caseItem) {
+        const caseItemIndex = cases.findIndex(c => c.id === caseId);
+        if (caseItemIndex === -1) {
             return { success: false, error: "Affaire non trouvée." };
         }
 
+        const caseItem = cases[caseItemIndex];
         caseItem.status = newStatus;
         caseItem.lastUpdate = new Date().toISOString().split('T')[0];
 
@@ -322,6 +326,7 @@ export async function updateCaseStatus(caseId: string, newStatus: Case['status']
         // Revalidate paths to reflect the status change
         revalidatePath('/dashboard/cases');
         revalidatePath(`/dashboard/cases/${caseId}`);
+        revalidatePath(`/client/cases`);
         revalidatePath(`/client/cases/${caseId}`);
 
         return { success: true, updatedCase: caseItem };

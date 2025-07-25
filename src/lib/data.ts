@@ -96,6 +96,62 @@ export type Invoice = {
   status: 'Payée' | 'En attente';
 }
 
+const lawyer: Lawyer = {
+    name: 'Maître Dupont',
+    email: 'm.dupont@cabinet-legal.fr',
+    role: 'Avocat',
+    avatar: 'https://placehold.co/100x100.png',
+};
+
+const clients: Client[] = [
+  {
+    id: 'client-alice',
+    name: 'Alice Martin',
+    email: 'alice.martin@email.com',
+    avatar: 'https://placehold.co/100x100.png?text=AM',
+    address: '123 Rue de la Paix, 75001 Paris',
+    phone: '06 12 34 56 78'
+  },
+  {
+    id: 'client-bernard',
+    name: 'Bernard Petit',
+    email: 'bernard.petit@email.com',
+    avatar: 'https://placehold.co/100x100.png?text=BP',
+    address: '45 Avenue des Champs-Élysées, 75008 Paris',
+    phone: '06 98 76 54 32'
+  },
+  {
+    id: 'client-carole',
+    name: 'Carole Duval',
+    email: 'carole.duval@email.com',
+    avatar: 'https://placehold.co/100x100.png?text=CD',
+    address: '78 Boulevard Saint-Germain, 75005 Paris',
+    phone: '06 11 22 33 44'
+  },
+  {
+    id: 'client-david',
+    name: 'David Moreau',
+    email: 'david.moreau@email.com',
+    avatar: 'https://placehold.co/100x100.png?text=DM',
+    address: '5 Rue du Faubourg Saint-Honoré, 75008 Paris',
+    phone: '06 55 66 77 88'
+  },
+  {
+    id: 'client-innovatech',
+    name: 'Société Innovatech',
+    email: 'contact@innovatech.com',
+    avatar: 'https://placehold.co/100x100.png?text=SI',
+    address: '1 Place de la Bourse, 75002 Paris',
+    phone: '01 23 45 67 89'
+  }
+];
+
+export const user = {
+  lawyer,
+  clients,
+  // We can imagine a login system would set the current user
+  currentUser: clients[0], 
+};
 
 export const cases: Case[] = [
   {
@@ -173,59 +229,9 @@ export const cases: Case[] = [
     lastUpdate: '2024-05-22',
     description: 'Contestation d\'une facture d\'artisan pour malfaçons sur des travaux de rénovation.',
     documents: [{ name: 'Devis signé.pdf', url: '#' }, { name: 'Photos malfaçons.zip', url: '#' }],
-    appointments: [{ id: 'apt-2', date: '2024-06-05', time: '14:00', notes: 'Premier rendez-vous', status: 'Confirmé' }],
+    appointments: [{ id: 'apt-2', date: '2024-07-25', time: '14:00', notes: 'Premier rendez-vous', status: 'En attente' }],
     keyDeadlines: [],
   },
-];
-
-const lawyer: Lawyer = {
-    name: 'Maître Dupont',
-    email: 'm.dupont@cabinet-legal.fr',
-    role: 'Avocat',
-    avatar: 'https://placehold.co/100x100.png',
-};
-
-const clients: Client[] = [
-  {
-    id: 'client-alice',
-    name: 'Alice Martin',
-    email: 'alice.martin@email.com',
-    avatar: 'https://placehold.co/100x100.png?text=AM',
-    address: '123 Rue de la Paix, 75001 Paris',
-    phone: '06 12 34 56 78'
-  },
-  {
-    id: 'client-bernard',
-    name: 'Bernard Petit',
-    email: 'bernard.petit@email.com',
-    avatar: 'https://placehold.co/100x100.png?text=BP',
-    address: '45 Avenue des Champs-Élysées, 75008 Paris',
-    phone: '06 98 76 54 32'
-  },
-  {
-    id: 'client-carole',
-    name: 'Carole Duval',
-    email: 'carole.duval@email.com',
-    avatar: 'https://placehold.co/100x100.png?text=CD',
-    address: '78 Boulevard Saint-Germain, 75005 Paris',
-    phone: '06 11 22 33 44'
-  },
-  {
-    id: 'client-david',
-    name: 'David Moreau',
-    email: 'david.moreau@email.com',
-    avatar: 'https://placehold.co/100x100.png?text=DM',
-    address: '5 Rue du Faubourg Saint-Honoré, 75008 Paris',
-    phone: '06 55 66 77 88'
-  },
-  {
-    id: 'client-innovatech',
-    name: 'Société Innovatech',
-    email: 'contact@innovatech.com',
-    avatar: 'https://placehold.co/100x100.png?text=SI',
-    address: '1 Place de la Bourse, 75002 Paris',
-    phone: '01 23 45 67 89'
-  }
 ];
 
 export const notifications: Notification[] = [
@@ -239,14 +245,6 @@ export const invoices: Invoice[] = [
     { id: 'inv-2', clientId: 'client-alice', caseId: '1', caseNumber: 'CASE-001', number: 'FACT-2024-002', date: '2024-06-01', amount: 500.00, status: 'En attente' },
     { id: 'inv-3', clientId: 'client-carole', caseId: '4', caseNumber: 'CASE-004', number: 'FACT-2024-003', date: '2024-03-20', amount: 1500.00, status: 'Payée' },
 ];
-
-export const user = {
-  lawyer,
-  clients,
-  // We can imagine a login system would set the current user
-  currentUser: clients[0], 
-};
-
 
 export const appointments: (Appointment & {clientName: string})[] = cases.flatMap(c => c.appointments.map(a => ({...a, clientName: c.clientName, caseId: c.id})))
   .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());

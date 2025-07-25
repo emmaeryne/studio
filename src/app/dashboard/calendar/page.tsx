@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Check, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -25,28 +25,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
-import { appointments as initialAppointments } from "@/lib/data";
+import { appointments as initialAppointments, type Appointment } from "@/lib/data";
 
-
-// Type definitions for better type safety
-interface Appointment {
-  id: string;
-  date: string;
-  time: string;
-  clientName: string;
-  notes: string;
-  status: "Confirmé" | "En attente" | "Annulé";
-  caseId: string;
-}
 
 interface EventsByDate {
-  [key: string]: Appointment[];
+  [key: string]: (Appointment & { clientName: string })[];
 }
 
 
 export default function CalendarPage() {
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
+  const [appointments, setAppointments] = useState<(Appointment & { clientName: string })[]>(initialAppointments);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const { toast } = useToast();
   const router = useRouter();
@@ -77,17 +66,17 @@ export default function CalendarPage() {
   const handleStatusUpdate = async (id: string, status: "Confirmé" | "Annulé") => {
     try {
       const res = await updateAppointmentStatus(id, status);
-      if (res.success) {
+      if (res.success && res.updatedAppointment) {
         setAppointments((prev) =>
           prev.map((a) => (a.id === id ? { ...a, status } : a))
         );
         toast({
           title: "Statut mis à jour",
-          description: `Le rendez-vous a été ${status.toLowerCase()}.`,
+          description: `Le rendez-vous a été ${status === 'Confirmé' ? 'confirmé' : 'annulé'}.`,
         });
-        router.refresh(); // This re-fetches server data and re-renders
+        router.refresh();
       } else {
-        throw new Error(res.error);
+        throw new Error(res.error || 'Unknown error');
       }
     } catch (error) {
       toast({
@@ -138,7 +127,7 @@ export default function CalendarPage() {
           <CardHeader>
             <CardTitle className="font-headline">Calendrier</CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 flex justify-center">
             <ShadcnCalendar
               mode="single"
               selected={date}
@@ -150,7 +139,7 @@ export default function CalendarPage() {
                 day_today: "bg-accent/50 text-accent-foreground",
               }}
               components={{
-                DayContent: ({ date, ...props }) => {
+                DayContent: ({ date }) => {
                   const dailyEvents = eventsByDate[date.toDateString()];
                   return (
                     <div className="relative h-full w-full flex items-center justify-center">
@@ -179,10 +168,9 @@ export default function CalendarPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">
-              Rendez-vous pour le{" "}
+              Rendez-vous du{" "}
               {date ? date.toLocaleDateString("fr-FR", {
                 weekday: "long",
-                year: "numeric",
                 month: "long",
                 day: "numeric",
               }) : "..."}

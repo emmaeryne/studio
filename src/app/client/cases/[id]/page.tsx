@@ -27,10 +27,14 @@ export default function ClientCaseDetailPage({ params: { id } }: { params: { id:
   // We show it once, and then it can be "cleared" in a real app.
   const estimate = caseItem._estimate;
   if(caseItem._estimate) {
-    delete caseItem._estimate;
+    // This is a mock data mutation. In a real app, this would be a database update.
+    const caseIndex = cases.findIndex(c => c.id === caseItem.id);
+    if (caseIndex !== -1) {
+        delete cases[caseIndex]._estimate;
+    }
   }
 
-  const getStatusVariant = (status: string) => {
+  const getStatusVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
     switch (status) {
       case 'Nouveau': return 'destructive';
       case 'En cours': return 'default';
@@ -40,7 +44,7 @@ export default function ClientCaseDetailPage({ params: { id } }: { params: { id:
     }
   };
 
-  const getAppointmentStatusVariant = (status: string) => {
+  const getAppointmentStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
       case 'Confirmé': return 'default';
       case 'En attente': return 'secondary';
@@ -134,7 +138,7 @@ export default function ClientCaseDetailPage({ params: { id } }: { params: { id:
                         <p className="text-muted-foreground">{deadline.description}</p>
                     </div>
                   </li>
-                )) : <p className="text-muted-foreground">Aucune échéance à venir.</p>}
+                )) : <p className="text-muted-foreground text-center py-4">Aucune échéance à venir.</p>}
               </ul>
             </CardContent>
           </Card>
@@ -155,7 +159,7 @@ export default function ClientCaseDetailPage({ params: { id } }: { params: { id:
                         <p className="text-muted-foreground">{appointment.notes}</p>
                     </div>
                   </li>
-                )) : <p className="text-muted-foreground">Aucun rendez-vous planifié.</p>}
+                )) : <p className="text-muted-foreground text-center py-4">Aucun rendez-vous planifié.</p>}
               </ul>
               <RequestAppointmentDialog cases={[caseItem]}>
                 <Button variant="secondary" className="w-full mt-4">

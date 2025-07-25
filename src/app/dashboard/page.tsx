@@ -18,16 +18,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { cases, appointments as initialAppointments, user } from "@/lib/data";
+import { cases, appointments as initialAppointments } from "@/lib/data";
 import { Briefcase, CheckCircle2, Archive, Clock, ArrowUpRight, PlusCircle, Calendar as CalendarIcon, Check, X } from "lucide-react";
 import { AddCaseDialog } from "@/components/add-case-dialog";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { updateAppointmentStatus } from "@/lib/actions";
 import { useRouter } from "next/navigation";
+import type { Appointment } from "@/lib/data";
 
 export default function DashboardPage() {
-  const [appointments, setAppointments] = useState(initialAppointments);
+  const [appointments, setAppointments] = useState<(Appointment & { clientName: string })[]>(initialAppointments);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -57,7 +58,7 @@ export default function DashboardPage() {
     }
   };
   
-  const getAppointmentStatusVariant = (status: string) => {
+  const getAppointmentStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
       case 'Confirmé': return 'default';
       case 'En attente': return 'secondary';
@@ -69,17 +70,17 @@ export default function DashboardPage() {
   const handleStatusUpdate = async (id: string, status: "Confirmé" | "Annulé") => {
     try {
       const res = await updateAppointmentStatus(id, status);
-      if (res.success) {
+      if (res.success && res.updatedAppointment) {
         setAppointments((prev) =>
           prev.map((a) => (a.id === id ? { ...a, status } : a))
         );
         toast({
           title: "Statut mis à jour",
-          description: `Le rendez-vous a été ${status.toLowerCase()}.`,
+          description: `Le rendez-vous a été ${status === 'Confirmé' ? 'confirmé' : 'annulé'}.`,
         });
         router.refresh(); 
       } else {
-        throw new Error(res.error);
+        throw new Error(res.error || 'Unknown error');
       }
     } catch (error) {
       toast({
