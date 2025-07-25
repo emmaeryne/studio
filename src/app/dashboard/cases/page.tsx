@@ -224,17 +224,18 @@ export default function CasesPage() {
                         })}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Link href={`/dashboard/cases/${caseItem.id}`}>
-                          <Button
+                        <Button
                             variant="outline"
                             size="sm"
                             className="hover:bg-primary hover:text-primary-foreground"
                             aria-label={`Gérer l'affaire ${caseItem.caseNumber}`}
+                            asChild
                           >
+                          <Link href={`/dashboard/cases/${caseItem.id}`}>
                             Gérer
                             <ArrowUpRight className="h-4 w-4 ml-2" />
-                          </Button>
-                        </Link>
+                          </Link>
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))

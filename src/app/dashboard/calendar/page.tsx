@@ -130,12 +130,7 @@ export default function CalendarPage() {
         <h1 className="text-2xl md:text-3xl font-headline font-bold">
           Calendrier des rendez-vous
         </h1>
-        <Button asChild className="flex items-center gap-2">
-          <Link href="/dashboard/appointments/new">
-            <PlusCircle className="h-5 w-5" />
-            Nouveau rendez-vous
-          </Link>
-        </Button>
+        {/* The "New Appointment" button is less relevant for lawyers, they manage requests */}
       </div>
 
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
@@ -155,7 +150,7 @@ export default function CalendarPage() {
                 day_today: "bg-accent/50 text-accent-foreground",
               }}
               components={{
-                DayContent: ({ date }) => {
+                DayContent: ({ date, ...props }) => {
                   const dailyEvents = eventsByDate[date.toDateString()];
                   return (
                     <div className="relative h-full w-full flex items-center justify-center">
@@ -263,7 +258,7 @@ export default function CalendarPage() {
                         </Button>
                       </div>
                     )}
-                    <Button
+                     <Button
                       variant="link"
                       size="sm"
                       className="p-0 h-auto mt-1"
