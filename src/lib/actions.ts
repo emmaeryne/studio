@@ -257,6 +257,7 @@ export async function updateAppointmentStatus(appointmentId: string, status: 'Co
             revalidatePath('/dashboard/calendar');
             revalidatePath(`/client/cases/${caseToUpdate.id}`);
             revalidatePath(`/client/layout`); // To update notification bell
+            revalidatePath('/dashboard');
             return { success: true };
         }
 
