@@ -48,10 +48,10 @@ export default function ClientLayout({
             Mes Affaires
           </Link>
           <Link
-            href="/dashboard/messages" // Re-using the same message page for simplicity
+            href="/client/dashboard/messages" // Re-using the same message page for simplicity
             className="text-muted-foreground transition-colors hover:text-foreground"
           >
-            Messages
+           
           </Link>
            <RequestAppointmentDialog cases={clientCases}>
              <Button variant="link" className="text-muted-foreground p-0 h-auto font-normal">

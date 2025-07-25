@@ -13,7 +13,7 @@ import { user, conversations as initialConversations } from "@/lib/data";
 import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
 import { AvatarImage } from "@/components/ui/avatar";
 
-export default function LawyerMessagesPage() {
+export default function ClientMessagesPage() {
   const [conversations, setConversations] = useState(initialConversations);
   const [selectedConversationId, setSelectedConversationId] = useState(conversations[0].id);
   const [newMessage, setNewMessage] = useState("");
@@ -31,7 +31,7 @@ export default function LawyerMessagesPage() {
       // Simuler l'envoi du message
       const newMsg = {
         id: `msg-${Date.now()}`,
-        senderId: user.lawyer.email,
+        senderId: user.currentUser.id,
         content: newMessage,
         timestamp: new Date().toISOString(),
         read: false
@@ -43,7 +43,7 @@ export default function LawyerMessagesPage() {
             ? { 
                 ...c, 
                 messages: [...c.messages, newMsg],
-                unreadCount: c.unreadCount + 1
+                unreadCount: 0
               } 
             : c
         )
@@ -72,7 +72,7 @@ export default function LawyerMessagesPage() {
   return (
     <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 h-[calc(100vh-4rem)] flex flex-col">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl md:text-3xl font-headline font-bold">Messagerie Professionnelle</h1>
+        <h1 className="text-2xl md:text-3xl font-headline font-bold">Messagerie</h1>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 flex-1 overflow-hidden">
         <Card className="md:col-span-1 lg:col-span-1 flex flex-col">
@@ -80,7 +80,7 @@ export default function LawyerMessagesPage() {
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Rechercher un client..."
+                placeholder="Rechercher une conversation..."
                 className="pl-8"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -92,7 +92,7 @@ export default function LawyerMessagesPage() {
               conversations={conversations}
               selectedConversationId={selectedConversationId}
               onSelectConversation={setSelectedConversationId}
-              currentUserId={user.lawyer.email}
+              currentUserId={user.currentUser.id}
               searchQuery={searchQuery}
             />
           </ScrollArea>
@@ -102,12 +102,12 @@ export default function LawyerMessagesPage() {
           <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10">
-                <AvatarImage src={selectedConversation.clientAvatar} alt={selectedConversation.clientName} />
-                <AvatarFallback>{selectedConversation.clientName.charAt(0)}</AvatarFallback>
+                <AvatarImage src={user.lawyer.avatar} alt={user.lawyer.name} />
+                <AvatarFallback>{user.lawyer.name.charAt(0)}</AvatarFallback>
               </Avatar>
               <div>
                 <CardTitle className="font-headline text-lg">
-                  {selectedConversation.clientName}
+                  {user.lawyer.name}
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
                   Affaire: {selectedConversation.caseNumber}
@@ -118,7 +118,7 @@ export default function LawyerMessagesPage() {
           <ScrollArea className="flex-1" ref={scrollAreaRef}>
             <MessageView
               conversation={selectedConversation}
-              currentUserId={user.lawyer.email}
+              currentUserId={user.currentUser.id}
               lawyerName={user.lawyer.name}
               lawyerAvatar={user.lawyer.avatar}
               newMessage={newMessage}

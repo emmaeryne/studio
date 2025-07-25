@@ -4,7 +4,9 @@ import {
   ArrowUpRight,
   Briefcase,
   FileText,
-  DollarSign
+  DollarSign,
+  MessageSquare,
+  Send
 } from "lucide-react"
 
 import {
@@ -29,15 +31,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { cases, user } from "@/lib/data"
+import { Input } from "@/components/ui/input"
+import { cases, user, conversations, invoices } from "@/lib/data"
 
 export default function ClientDashboard() {
   const clientUser = user.currentUser;
   const clientCases = cases.filter(c => c.clientId === clientUser.id);
-  
+  const clientConversations = conversations.filter(c => 
+    cases.some(caseItem => caseItem.id === c.caseId && caseItem.clientId === clientUser.id)
+  );
+  const clientInvoices = invoices.filter(i => i.clientId === clientUser.id);
+
   const stats = {
-    open: clientCases.filter(c => c.status === 'En cours' || c.status === 'Nouveau' || c.status === 'En attente du client').length,
+    open: clientCases.filter(c => ['En cours', 'Nouveau', 'En attente du client'].includes(c.status)).length,
     closed: clientCases.filter(c => c.status === 'Clôturé').length,
+    unread: clientConversations.reduce((acc, conv) => acc + conv.unreadCount, 0),
+    pendingInvoices: clientInvoices.filter(i => i.status === 'En attente').length,
   };
 
   const getStatusVariant = (status: string) => {
@@ -50,73 +59,167 @@ export default function ClientDashboard() {
     }
   };
 
+  const getLatestMessages = () => {
+    return clientConversations
+      .flatMap(conv => conv.messages.map(msg => ({
+        ...msg,
+        conversationId: conv.id,
+        caseNumber: conv.caseNumber,
+        senderName: msg.senderId === user.lawyer.email ? user.lawyer.name : clientUser.name,
+        senderAvatar: msg.senderId === user.lawyer.email ? user.lawyer.avatar : clientUser.avatar,
+        isFromLawyer: msg.senderId === user.lawyer.email
+      })))
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 3);
+  };
+
+  const latestMessages = getLatestMessages();
 
   return (
     <div className="flex flex-col gap-6">
-       <h1 className="text-2xl md:text-3xl font-headline font-bold">
-        Bienvenue, {clientUser.name.split(' ')[0]}
-      </h1>
-      <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Affaires en cours
-            </CardTitle>
-            <Briefcase className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.open}</div>
-            <p className="text-xs text-muted-foreground">
-              Total des affaires actives
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Documents Partagés
-            </CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{clientCases.reduce((acc, c) => acc + c.documents.length, 0)}</div>
-            <p className="text-xs text-muted-foreground">
-              Tous les dossiers confondus
-            </p>
-          </CardContent>
-        </Card>
-         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Factures en attente</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">2</div>
-             <p className="text-xs text-muted-foreground">
-              Total de 1,250.00€
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Prochain RDV</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">10/07/2024</div>
-            <p className="text-xs text-muted-foreground">
-              À 10:00 avec Maître Dupont
-            </p>
-          </CardContent>
-        </Card>
+      <div>
+        <h1 className="text-3xl font-bold font-headline mb-1">
+          Bonjour {clientUser.name.split(' ')[0]} 👋
+        </h1>
+        <p className="text-muted-foreground">Voici un aperçu de votre activité juridique</p>
       </div>
-      <div className="grid gap-4 md:gap-8 lg:grid-cols-1">
+
+      {/* Statistiques */}
+      <div className="grid gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-4">
+        {[
+          {
+            title: "Affaires en cours",
+            icon: <Briefcase className="h-4 w-4 text-muted-foreground" />,
+            value: stats.open,
+            desc: "Total des affaires actives",
+          },
+          {
+            title: "Messages non lus",
+            icon: <MessageSquare className="h-4 w-4 text-muted-foreground" />,
+            value: stats.unread,
+            desc: "Messages en attente",
+            link: "/client/messages"
+          },
+          {
+            title: "Factures en attente",
+            icon: <DollarSign className="h-4 w-4 text-muted-foreground" />,
+            value: stats.pendingInvoices,
+            desc: `Total de ${clientInvoices
+              .filter(i => i.status === 'En attente')
+              .reduce((sum, invoice) => sum + invoice.amount, 0)
+              .toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`,
+          },
+          {
+            title: "Prochain RDV",
+            icon: <Activity className="h-4 w-4 text-muted-foreground" />,
+            value: cases
+              .flatMap(c => c.appointments)
+              .filter(a => a.status === 'Confirmé')
+              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0]?.date || 'Aucun',
+            desc: cases
+              .flatMap(c => c.appointments)
+              .filter(a => a.status === 'Confirmé')
+              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0]?.notes || '',
+          }
+        ].map((item, idx) => (
+          <Card key={idx}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">{item.title}</CardTitle>
+              {item.icon}
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{item.value}</div>
+              <p className="text-xs text-muted-foreground">{item.desc}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Barre de messages */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              Messagerie
+            </CardTitle>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/client/messages">
+                Voir tous les messages
+                <ArrowUpRight className="h-4 w-4 ml-1" />
+              </Link>
+            </Button>
+          </div>
+          <CardDescription>
+            Échangez directement avec votre avocat
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {/* Derniers messages */}
+            {latestMessages.length > 0 ? (
+              latestMessages.map((message) => (
+                <div 
+                  key={message.id} 
+                  className={`p-4 rounded-lg border ${!message.read ? 'bg-blue-50 border-blue-200' : 'bg-muted/50'}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={message.senderAvatar} />
+                      <AvatarFallback>{message.senderName.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium">{message.senderName}</h4>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(message.timestamp).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-sm mt-1 line-clamp-2">{message.content}</p>
+                      <div className="flex justify-between items-center mt-2">
+                        <span className="text-xs text-muted-foreground">
+                          Affaire: {message.caseNumber}
+                        </span>
+                        {message.isFromLawyer && !message.read && (
+                          <Badge variant="default" className="text-xs">
+                            Nouveau
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Aucun message récent
+              </p>
+            )}
+
+            {/* Formulaire d'envoi de message */}
+            <div className="pt-4 border-t">
+              <form className="flex gap-2">
+                <Input 
+                  placeholder="Écrivez votre message..." 
+                  className="flex-1"
+                />
+                <Button type="submit" size="icon">
+                  <Send className="h-4 w-4" />
+                </Button>
+              </form>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tableau des affaires */}
+      <div>
         <Card>
           <CardHeader className="flex flex-row items-center">
             <div className="grid gap-2">
-              <CardTitle>Mes Affaires Récentes</CardTitle>
+              <CardTitle>Suivi de vos affaires</CardTitle>
               <CardDescription>
-                Suivez l'avancement de vos affaires juridiques.
+                Accédez rapidement à vos dernières affaires juridiques.
               </CardDescription>
             </div>
             <Button asChild size="sm" className="ml-auto gap-1">
@@ -130,7 +233,7 @@ export default function ClientDashboard() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Numéro d'affaire</TableHead>
+                  <TableHead>Numéro</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead>Dernière mise à jour</TableHead>
@@ -141,21 +244,23 @@ export default function ClientDashboard() {
               </TableHeader>
               <TableBody>
                 {clientCases.slice(0, 5).map(caseItem => (
-                <TableRow key={caseItem.id}>
-                  <TableCell className="font-medium">{caseItem.caseNumber}</TableCell>
-                  <TableCell>{caseItem.caseType}</TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusVariant(caseItem.status)}>{caseItem.status}</Badge>
-                  </TableCell>
-                  <TableCell>{new Date(caseItem.lastUpdate).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-right">
-                    <Link href={`/client/cases/${caseItem.id}`}>
-                      <Button variant="outline" size="sm">
-                        Voir les détails
-                      </Button>
-                    </Link>
-                  </TableCell>
-                </TableRow>
+                  <TableRow key={caseItem.id}>
+                    <TableCell className="font-medium">{caseItem.caseNumber}</TableCell>
+                    <TableCell>{caseItem.caseType}</TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusVariant(caseItem.status)}>
+                        {caseItem.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{new Date(caseItem.lastUpdate).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-right">
+                      <Link href={`/client/cases/${caseItem.id}`}>
+                        <Button variant="outline" size="sm">
+                          Détails
+                        </Button>
+                      </Link>
+                    </TableCell>
+                  </TableRow>
                 ))}
               </TableBody>
             </Table>
@@ -163,5 +268,5 @@ export default function ClientDashboard() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

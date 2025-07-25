@@ -144,9 +144,10 @@ export async function sendMessage(conversationId: string, content: string) {
         const newMessage: Message = {
             id: `msg-${conversationId}-${conversation.messages.length + 1}`,
             // In a real app, we'd get the sender from the session
-            senderId: user.lawyer.email, 
+            senderId: user.lawyer.email,
             content,
             timestamp: new Date().toISOString(),
+            read: undefined
         }
         conversation.messages.push(newMessage);
         revalidatePath('/dashboard/messages');
