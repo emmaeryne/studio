@@ -1,5 +1,8 @@
-import { notFound } from "next/navigation";
-import { cases, user } from "@/lib/data";
+
+"use client";
+
+import { notFound, useParams } from "next/navigation";
+import { cases, user, type Case } from "@/lib/data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,27 +17,42 @@ import Link from "next/link";
 import { ClientDocumentUploader } from "@/components/client-document-uploader";
 import { RequestAppointmentDialog } from "@/components/request-appointment-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useState, useEffect } from "react";
 
-export default function ClientCaseDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
-  const clientUser = user.currentUser;
-  const caseItem = cases.find((c) => c.id === id && c.clientId === clientUser.id);
+export default function ClientCaseDetailPage() {
+  const params = useParams();
+  const id = params.id as string;
+  
+  const [caseItem, setCaseItem] = useState<Case | null | undefined>(undefined);
+  const [estimate, setEstimate] = useState<Case['_estimate'] | undefined>(undefined);
 
-  if (!caseItem) {
+  useEffect(() => {
+    const clientUser = user.currentUser;
+    const foundCase = cases.find((c) => c.id === id && c.clientId === clientUser.id);
+    
+    if (foundCase) {
+        setCaseItem(foundCase);
+        // The estimate is temporarily stored on the case object after creation.
+        // We show it once, and then it can be "cleared" in a real app.
+        if (foundCase._estimate) {
+            setEstimate(foundCase._estimate);
+            // This is a mock data mutation. In a real app, this would be a database update.
+            delete foundCase._estimate;
+        }
+    } else {
+        setCaseItem(null);
+    }
+  }, [id]);
+
+  if (caseItem === undefined) {
+    // Loading state, you can return a spinner here
+    return <p>Chargement...</p>;
+  }
+
+  if (caseItem === null) {
     notFound();
   }
   
-  // The estimate is temporarily stored on the case object after creation.
-  // We show it once, and then it can be "cleared" in a real app.
-  const estimate = caseItem._estimate;
-  if(caseItem._estimate) {
-    // This is a mock data mutation. In a real app, this would be a database update.
-    const caseIndex = cases.findIndex(c => c.id === caseItem.id);
-    if (caseIndex !== -1) {
-        delete cases[caseIndex]._estimate;
-    }
-  }
-
   const getStatusVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
     switch (status) {
       case 'Nouveau': return 'destructive';
@@ -50,6 +68,7 @@ export default function ClientCaseDetailPage({ params }: { params: { id: string 
       case 'Confirmé': return 'default';
       case 'En attente': return 'secondary';
       case 'Annulé': return 'destructive';
+      case 'Reporté': return 'outline';
       default: return 'outline';
     }
   };

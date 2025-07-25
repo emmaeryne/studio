@@ -1,7 +1,7 @@
 // This component needs to be a client component to handle state for the dropdown.
 "use client";
 
-import { notFound } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
 import { cases } from "@/lib/data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,26 +27,24 @@ import { useToast } from "@/hooks/use-toast";
 import type { Case } from "@/lib/data";
 import { useState, useEffect } from "react";
 
-export default function CaseDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function CaseDetailPage() {
+  const params = useParams();
+  const id = params.id as string;
   const { toast } = useToast();
   
-  // Use state to manage the case item for real-time updates on the page
-  const [caseItem, setCaseItem] = useState<Case | undefined>(() => cases.find((c) => c.id === id));
+  const [caseItem, setCaseItem] = useState<Case | null | undefined>(undefined);
   
   useEffect(() => {
-    // If the case is not found initially or id changes, update the state
-    setCaseItem(cases.find((c) => c.id === id));
+    const foundCase = cases.find((c) => c.id === id);
+    setCaseItem(foundCase || null);
   }, [id]);
 
-  if (!caseItem) {
-    // This part will be executed on the server during the initial render,
-    // and on the client if the case isn't found after useEffect.
-    // notFound() should only be called from server components,
-    // so we return a friendly message on the client.
-    if (typeof window !== 'undefined') {
-        return <p>Affaire non trouvée.</p>;
-    }
+  if (caseItem === undefined) {
+    // Loading state, can return a spinner
+    return <p>Chargement...</p>;
+  }
+
+  if (caseItem === null) {
     notFound();
   }
 
