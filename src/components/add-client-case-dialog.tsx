@@ -1,3 +1,4 @@
+
 // A dialog component for adding a new case from the client portal.
 'use client';
 import { useState } from 'react';
@@ -46,29 +47,24 @@ export function AddClientCaseDialog({ children }: { children: React.ReactNode })
     }
     
     try {
-        // The server action will handle the redirect
-        await addClientCase(newCaseData);
-        
-        toast({
-            title: 'Affaire Soumise',
-            description: `Votre nouvelle affaire a été soumise avec succès.`,
-        });
-        setOpen(false);
-
+        const result = await addClientCase(newCaseData);
+        if (result.success && result.newCaseId) {
+            toast({
+                title: 'Affaire Soumise',
+                description: `Votre nouvelle affaire a été soumise avec succès.`,
+            });
+            setOpen(false);
+            router.push(`/client/cases/${result.newCaseId}`);
+        } else {
+            throw new Error(result.error || "Failed to create case");
+        }
     } catch (error) {
-       // The redirect might throw an error, which is expected.
-       // We can safely ignore it on the client. If there's a real server error,
-       // the user will see the Next.js error page.
-       if (error && typeof error === 'object' && 'digest' in error && (error as any).digest?.startsWith('NEXT_REDIRECT')) {
-         // This is an expected redirect error, do nothing.
-       } else {
-         console.error(error);
-         toast({
-            variant: 'destructive',
-            title: 'Erreur',
-            description: "Impossible de soumettre la nouvelle affaire. Veuillez réessayer.",
-         });
-       }
+       console.error(error);
+       toast({
+          variant: 'destructive',
+          title: 'Erreur',
+          description: "Impossible de soumettre la nouvelle affaire. Veuillez réessayer.",
+       });
     } finally {
         setIsLoading(false);
     }

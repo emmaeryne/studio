@@ -1,3 +1,4 @@
+
 'use server'
 
 import { summarizeCaseDocuments } from '@/ai/flows/summarize-case-documents';
@@ -99,7 +100,7 @@ export async function addClientCase(newCase: { caseType: Case['caseType']; descr
     revalidatePath('/client/cases');
     revalidatePath(`/client/cases/${nextId}`);
 
-    redirect(`/client/cases/${nextId}`);
+    return { success: true, newCaseId: nextId };
 }
 
 
