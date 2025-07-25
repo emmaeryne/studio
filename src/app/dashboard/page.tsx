@@ -19,16 +19,18 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { cases, appointments as initialAppointments } from "@/lib/data";
-import { Briefcase, CheckCircle2, Archive, Clock, ArrowUpRight, PlusCircle, Calendar as CalendarIcon, Check, X } from "lucide-react";
+import { Briefcase, CheckCircle2, Archive, Clock, ArrowUpRight, PlusCircle, Calendar as CalendarIcon, Check, Edit } from "lucide-react";
 import { AddCaseDialog } from "@/components/add-case-dialog";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { updateAppointmentStatus } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import type { Appointment } from "@/lib/data";
+import { RescheduleAppointmentDialog } from "@/components/reschedule-appointment-dialog";
 
 export default function DashboardPage() {
   const [appointments, setAppointments] = useState<(Appointment & { clientName: string })[]>(initialAppointments);
+  const [appointmentToReschedule, setAppointmentToReschedule] = useState<Appointment & { clientName: string } | null>(null);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -63,20 +65,21 @@ export default function DashboardPage() {
       case 'Confirmé': return 'default';
       case 'En attente': return 'secondary';
       case 'Annulé': return 'destructive';
+      case 'Reporté': return 'outline';
       default: return 'outline';
     }
   };
 
-  const handleStatusUpdate = async (id: string, status: "Confirmé" | "Annulé") => {
+  const handleConfirm = async (id: string) => {
     try {
-      const res = await updateAppointmentStatus(id, status);
+      const res = await updateAppointmentStatus(id, 'Confirmé');
       if (res.success && res.updatedAppointment) {
         setAppointments((prev) =>
-          prev.map((a) => (a.id === id ? { ...a, status } : a))
+          prev.map((a) => (a.id === id ? { ...a, status: 'Confirmé' } : a))
         );
         toast({
-          title: "Statut mis à jour",
-          description: `Le rendez-vous a été ${status === 'Confirmé' ? 'confirmé' : 'annulé'}.`,
+          title: "Rendez-vous Confirmé",
+          description: `Le rendez-vous a été confirmé.`,
         });
         router.refresh(); 
       } else {
@@ -86,13 +89,27 @@ export default function DashboardPage() {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Échec de la mise à jour du statut.",
+        description: "Échec de la confirmation.",
       });
     }
   };
+  
+  const handleRescheduleSuccess = (updatedAppointment: Appointment) => {
+    setAppointments((prev) =>
+      prev.map((a) => (a.id === updatedAppointment.id ? { ...a, ...updatedAppointment, status: 'Reporté' } : a))
+    );
+     router.refresh(); 
+  }
 
 
   return (
+    <>
+    <RescheduleAppointmentDialog 
+        appointment={appointmentToReschedule}
+        isOpen={!!appointmentToReschedule}
+        onClose={() => setAppointmentToReschedule(null)}
+        onSuccess={handleRescheduleSuccess}
+    />
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl md:text-3xl font-headline font-bold">Tableau de Bord</h1>
@@ -193,7 +210,7 @@ export default function DashboardPage() {
                         {caseItem.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">{new Date(caseItem.submittedDate).toLocaleDateString('fr-FR')}</TableCell>
+                    <TableCell className="text-right">{new Date(caseItem.submittedDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</TableCell>
                     <TableCell className="text-right">
                       <Link href={`/dashboard/cases/${caseItem.id}`}>
                         <Button variant="outline" size="sm">
@@ -231,10 +248,10 @@ export default function DashboardPage() {
                 <div className="text-right flex flex-col items-end gap-1">
                     {appointment.status === 'En attente' ? (
                         <div className="flex items-center gap-1">
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleStatusUpdate(appointment.id, 'Annulé')}>
-                                <X className="h-4 w-4 text-destructive"/>
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setAppointmentToReschedule(appointment)}>
+                                <Edit className="h-4 w-4 text-blue-600"/>
                             </Button>
-                             <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleStatusUpdate(appointment.id, 'Confirmé')}>
+                             <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleConfirm(appointment.id)}>
                                 <Check className="h-4 w-4 text-green-600"/>
                             </Button>
                         </div>
@@ -251,5 +268,6 @@ export default function DashboardPage() {
         </Card>
       </div>
     </div>
+    </>
   );
 }

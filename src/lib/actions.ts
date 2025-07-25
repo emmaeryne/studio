@@ -222,7 +222,7 @@ export async function requestAppointment(appointmentData: { caseId: string, date
     }
 }
 
-export async function updateAppointmentStatus(appointmentId: string, status: 'Confirmé' | 'Annulé') {
+export async function updateAppointmentStatus(appointmentId: string, status: Appointment['status']) {
     try {
         let updatedAppointment: (Appointment & {clientName?: string}) | undefined;
         let caseToUpdate: Case | undefined;
@@ -251,7 +251,7 @@ export async function updateAppointmentStatus(appointmentId: string, status: 'Co
                  notifications.push({
                     id: `notif-${Date.now()}`,
                     userId: client.id,
-                    message: `Votre rendez-vous du ${new Date(updatedAppointment.date).toLocaleDateString()} à ${updatedAppointment.time} a été ${status === 'Confirmé' ? 'confirmé' : 'annulé'}.`,
+                    message: `Votre rendez-vous du ${new Date(updatedAppointment.date).toLocaleDateString('fr-FR')} à ${updatedAppointment.time} a été ${status.toLowerCase()}.`,
                     read: false,
                     date: new Date().toISOString()
                 });
@@ -268,6 +268,58 @@ export async function updateAppointmentStatus(appointmentId: string, status: 'Co
     } catch(error) {
         console.error(error);
         return { success: false, error: 'Impossible de mettre à jour le statut du rendez-vous' };
+    }
+}
+
+export async function rescheduleAppointment(appointmentData: { appointmentId: string, newDate: string, newTime: string }) {
+    try {
+        const { appointmentId, newDate, newTime } = appointmentData;
+        let updatedAppointment: Appointment | undefined;
+        let caseToUpdate: Case | undefined;
+
+        // Find and update in global list
+        const globalAppointmentIndex = allAppointments.findIndex(a => a.id === appointmentId);
+        if(globalAppointmentIndex > -1) {
+            allAppointments[globalAppointmentIndex].date = newDate;
+            allAppointments[globalAppointmentIndex].time = newTime;
+            allAppointments[globalAppointmentIndex].status = 'Reporté';
+            updatedAppointment = allAppointments[globalAppointmentIndex];
+        }
+
+        // Find and update in case-specific list
+        for (const caseItem of cases) {
+            const caseAppointmentIndex = caseItem.appointments.findIndex(a => a.id === appointmentId);
+            if (caseAppointmentIndex > -1) {
+                caseItem.appointments[caseAppointmentIndex].date = newDate;
+                caseItem.appointments[caseAppointmentIndex].time = newTime;
+                caseItem.appointments[caseAppointmentIndex].status = 'Reporté';
+                caseToUpdate = caseItem;
+                break;
+            }
+        }
+
+        if (updatedAppointment && caseToUpdate) {
+             const client = user.clients.find(c => c.id === caseToUpdate?.clientId);
+            if (client) {
+                 notifications.push({
+                    id: `notif-${Date.now()}`,
+                    userId: client.id,
+                    message: `Votre rendez-vous a été reporté au ${new Date(newDate).toLocaleDateString('fr-FR')} à ${newTime}.`,
+                    read: false,
+                    date: new Date().toISOString()
+                });
+            }
+            revalidatePath('/dashboard/calendar');
+            revalidatePath('/dashboard');
+            revalidatePath(`/client/cases/${caseToUpdate.id}`);
+            revalidatePath(`/client/layout`); // To update notification bell
+            return { success: true, updatedAppointment };
+        }
+        
+        return { success: false, error: "Rendez-vous non trouvé" };
+    } catch (e) {
+        console.error(e);
+        return { success: false, error: "La modification du rendez-vous a échoué" };
     }
 }
 

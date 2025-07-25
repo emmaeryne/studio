@@ -11,7 +11,7 @@ export type Appointment = {
   time: string;
   notes: string;
   caseId: string;
-  status: 'Confirmé' | 'En attente' | 'Annulé';
+  status: 'Confirmé' | 'En attente' | 'Annulé' | 'Reporté';
 };
 
 export type Deadline = {

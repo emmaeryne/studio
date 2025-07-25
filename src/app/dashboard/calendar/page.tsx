@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, X } from "lucide-react";
+import { Check, Edit } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
 import { appointments as initialAppointments, type Appointment } from "@/lib/data";
+import { RescheduleAppointmentDialog } from "@/components/reschedule-appointment-dialog";
 
 
 interface EventsByDate {
@@ -37,6 +38,7 @@ export default function CalendarPage() {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [appointments, setAppointments] = useState<(Appointment & { clientName: string })[]>(initialAppointments);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [appointmentToReschedule, setAppointmentToReschedule] = useState<(Appointment & { clientName: string }) | null>(null);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -63,16 +65,16 @@ export default function CalendarPage() {
     }, {});
   }, [appointments]);
 
-  const handleStatusUpdate = async (id: string, status: "Confirmé" | "Annulé") => {
+  const handleConfirm = async (id: string) => {
     try {
-      const res = await updateAppointmentStatus(id, status);
+      const res = await updateAppointmentStatus(id, "Confirmé");
       if (res.success && res.updatedAppointment) {
         setAppointments((prev) =>
-          prev.map((a) => (a.id === id ? { ...a, status } : a))
+          prev.map((a) => (a.id === id ? { ...a, status: 'Confirmé' } : a))
         );
         toast({
           title: "Statut mis à jour",
-          description: `Le rendez-vous a été ${status === 'Confirmé' ? 'confirmé' : 'annulé'}.`,
+          description: `Le rendez-vous a été confirmé.`,
         });
         router.refresh();
       } else {
@@ -86,9 +88,16 @@ export default function CalendarPage() {
       });
     }
   };
+  
+  const handleRescheduleSuccess = (updatedAppointment: Appointment) => {
+    setAppointments((prev) =>
+      prev.map((a) => (a.id === updatedAppointment.id ? { ...a, ...updatedAppointment, status: 'Reporté' } : a))
+    );
+     router.refresh(); 
+  }
 
   const getStatusVariant = (
-    status: "Confirmé" | "En attente" | "Annulé"
+    status: Appointment['status']
   ): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
       case "Confirmé":
@@ -97,12 +106,14 @@ export default function CalendarPage() {
         return "secondary";
       case "Annulé":
         return "destructive";
+      case "Reporté":
+        return "outline";
       default:
         return "outline";
     }
   };
 
-  const getStatusColor = (status: "Confirmé" | "En attente" | "Annulé") => {
+  const getStatusColor = (status: Appointment['status']) => {
     switch (status) {
       case "Confirmé":
         return "bg-primary";
@@ -110,10 +121,19 @@ export default function CalendarPage() {
         return "bg-amber-500";
       case "Annulé":
         return "bg-destructive";
+      case "Reporté":
+        return "bg-blue-500";
     }
   };
 
   return (
+    <>
+    <RescheduleAppointmentDialog
+        appointment={appointmentToReschedule}
+        isOpen={!!appointmentToReschedule}
+        onClose={() => setAppointmentToReschedule(null)}
+        onSuccess={handleRescheduleSuccess}
+    />
     <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl md:text-3xl font-headline font-bold">
@@ -187,6 +207,7 @@ export default function CalendarPage() {
                 <SelectItem value="Confirmé">Confirmé</SelectItem>
                 <SelectItem value="En attente">En attente</SelectItem>
                 <SelectItem value="Annulé">Annulé</SelectItem>
+                <SelectItem value="Reporté">Reporté</SelectItem>
               </SelectContent>
             </Select>
           </CardHeader>
@@ -227,18 +248,16 @@ export default function CalendarPage() {
                           size="sm"
                           variant="ghost"
                           className="h-7 px-2"
-                          onClick={() =>
-                            handleStatusUpdate(appointment.id, "Annulé")
-                          }
-                          aria-label={`Annuler le rendez-vous de ${appointment.clientName}`}
+                          onClick={() => setAppointmentToReschedule(appointment) }
+                          aria-label={`Reporter le rendez-vous de ${appointment.clientName}`}
                         >
-                          <X className="h-4 w-4 mr-1" /> Annuler
+                          <Edit className="h-4 w-4 mr-1" /> Reporter
                         </Button>
                         <Button
                           size="sm"
                           className="h-7 px-2"
                           onClick={() =>
-                            handleStatusUpdate(appointment.id, "Confirmé")
+                            handleConfirm(appointment.id)
                           }
                           aria-label={`Confirmer le rendez-vous de ${appointment.clientName}`}
                         >
@@ -273,5 +292,6 @@ export default function CalendarPage() {
         </Card>
       </div>
     </div>
+    </>
   );
 }
