@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cases, user, notifications as allNotifications } from "@/lib/data";
+import { cases, user, notifications } from "@/lib/data";
 import { Briefcase, Calendar, LayoutDashboard, MessageSquare } from "lucide-react";
 import { Chatbot } from "@/components/chatbot";
 import { RequestAppointmentDialog } from "@/components/request-appointment-dialog";
@@ -22,7 +22,7 @@ export default function ClientLayout({
 }) {
   const clientUser = user.currentUser;
   const clientCases = cases.filter(c => c.clientId === clientUser.id);
-  const notifications = allNotifications.filter(n => n.userId === clientUser.id);
+  const clientNotifications = notifications.filter(n => n.userId === clientUser.id);
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -48,10 +48,10 @@ export default function ClientLayout({
             Mes Affaires
           </Link>
           <Link
-            href="/client/dashboard/messages" // Re-using the same message page for simplicity
+            href="/client/messages"
             className="text-muted-foreground transition-colors hover:text-foreground"
           >
-           
+            Messages
           </Link>
            <RequestAppointmentDialog cases={clientCases}>
              <Button variant="link" className="text-muted-foreground p-0 h-auto font-normal">
@@ -63,7 +63,7 @@ export default function ClientLayout({
             <div className="ml-auto flex-1 sm:flex-initial">
                  <Chatbot />
             </div>
-              <NotificationBell userId={clientUser.id} notifications={notifications} />
+              <NotificationBell userId={clientUser.id} notifications={clientNotifications} />
             <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" size="icon" className="rounded-full">

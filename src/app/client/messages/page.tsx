@@ -9,26 +9,30 @@ import { useToast } from "@/hooks/use-toast";
 import { sendMessage } from "@/lib/actions";
 import { MessageList } from "@/components/MessageList";
 import { MessageView } from "@/components/MessageView";
-import { user, conversations as initialConversations } from "@/lib/data";
+import { user, conversations as initialConversations, cases } from "@/lib/data";
 import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
 import { AvatarImage } from "@/components/ui/avatar";
 
 export default function ClientMessagesPage() {
-  const [conversations, setConversations] = useState(initialConversations);
-  const [selectedConversationId, setSelectedConversationId] = useState(conversations[0].id);
+  const clientUser = user.currentUser;
+  const clientConversations = initialConversations.filter(c => 
+    cases.some(caseItem => caseItem.id === c.caseId && caseItem.clientId === clientUser.id)
+  );
+
+  const [conversations, setConversations] = useState(clientConversations);
+  const [selectedConversationId, setSelectedConversationId] = useState(clientConversations[0]?.id);
   const [newMessage, setNewMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  const selectedConversation = conversations.find(c => c.id === selectedConversationId)!;
+  const selectedConversation = conversations.find(c => c.id === selectedConversationId);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !selectedConversationId) return;
 
     try {
-      // Simuler l'envoi du message
       const newMsg = {
         id: `msg-${Date.now()}`,
         senderId: user.currentUser.id,
@@ -43,7 +47,7 @@ export default function ClientMessagesPage() {
             ? { 
                 ...c, 
                 messages: [...c.messages, newMsg],
-                unreadCount: 0
+                unreadCount: 0 
               } 
             : c
         )
@@ -61,13 +65,26 @@ export default function ClientMessagesPage() {
   };
 
   useEffect(() => {
-    if (scrollAreaRef.current) {
+    if (scrollAreaRef.current && selectedConversation?.messages.length) {
       const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
       if (viewport) {
         viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
       }
     }
-  }, [selectedConversation.messages.length]);
+  }, [selectedConversation?.messages.length]);
+  
+  if (conversations.length === 0) {
+    return (
+        <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 h-full flex flex-col items-center justify-center">
+            <Card className="p-8 text-center">
+                <CardTitle className="font-headline text-xl">Aucune conversation</CardTitle>
+                <CardContent className="pt-4">
+                    <p className="text-muted-foreground">Vous n'avez pas encore de messages. Une conversation sera créée lorsque vous ou votre avocat enverrez le premier message concernant une affaire.</p>
+                </CardContent>
+            </Card>
+        </div>
+    )
+  }
 
   return (
     <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 h-[calc(100vh-4rem)] flex flex-col">
@@ -98,35 +115,37 @@ export default function ClientMessagesPage() {
           </ScrollArea>
         </Card>
 
-        <Card className="md:col-span-2 lg:col-span-3 flex flex-col">
-          <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={user.lawyer.avatar} alt={user.lawyer.name} />
-                <AvatarFallback>{user.lawyer.name.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <div>
-                <CardTitle className="font-headline text-lg">
-                  {user.lawyer.name}
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Affaire: {selectedConversation.caseNumber}
-                </p>
+        {selectedConversation && (
+          <Card className="md:col-span-2 lg:col-span-3 flex flex-col">
+            <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={user.lawyer.avatar} alt={user.lawyer.name} />
+                  <AvatarFallback>{user.lawyer.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <CardTitle className="font-headline text-lg">
+                    {user.lawyer.name}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Affaire: {selectedConversation.caseNumber}
+                  </p>
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          <ScrollArea className="flex-1" ref={scrollAreaRef}>
-            <MessageView
-              conversation={selectedConversation}
-              currentUserId={user.currentUser.id}
-              lawyerName={user.lawyer.name}
-              lawyerAvatar={user.lawyer.avatar}
-              newMessage={newMessage}
-              onNewMessageChange={setNewMessage}
-              onSendMessage={handleSendMessage}
-            />
-          </ScrollArea>
-        </Card>
+            </CardHeader>
+            <ScrollArea className="flex-1" ref={scrollAreaRef}>
+              <MessageView
+                conversation={selectedConversation}
+                currentUserId={user.currentUser.id}
+                lawyerName={user.lawyer.name}
+                lawyerAvatar={user.lawyer.avatar}
+                newMessage={newMessage}
+                onNewMessageChange={setNewMessage}
+                onSendMessage={handleSendMessage}
+              />
+            </ScrollArea>
+          </Card>
+        )}
       </div>
     </div>
   );

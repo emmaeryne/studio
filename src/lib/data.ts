@@ -14,14 +14,6 @@ export type Appointment = {
   status: 'Confirmé' | 'En attente' | 'Annulé';
 };
 
-export interface client {
-  id: string;
-  name: string;
-  email: string;
-  address?: string;
-  phone?: string;
-  avatar: string; // If avatar can be undefined, use `avatar?: string`
-}
 export type Deadline = {
   date: string;
   description: string;
@@ -39,7 +31,7 @@ export type Case = {
   lastUpdate: string;
   description: string;
   documents: CaseDocument[];
-  appointments: Omit<Appointment, 'caseId'>[];
+  appointments: Omit<Appointment, 'caseId' | 'clientName'>[];
   keyDeadlines: Deadline[];
   _estimate?: CaseCostEstimate; // Temporary field for estimate
 };
@@ -50,12 +42,11 @@ export type CaseCostEstimate = {
 }
 
 export type Message = {
-    
-    read: any;
     id: string;
     senderId: string; // email
     content: string;
     timestamp: string;
+    read?: boolean;
 };
 
 export type Conversation = {
@@ -73,10 +64,11 @@ export type Lawyer = {
     email: string;
     role: string;
     avatar: string;
+    specialty?: string;
+    phone?: string;
 }
 
 export type Client = {
-    clientAvatar: string | undefined;
     id: string;
     name: string;
     email: string;
@@ -200,8 +192,7 @@ const clients: Client[] = [
     email: 'alice.martin@email.com',
     avatar: 'https://placehold.co/100x100.png?text=AM',
     address: '123 Rue de la Paix, 75001 Paris',
-    phone: '06 12 34 56 78',
-    clientAvatar: undefined
+    phone: '06 12 34 56 78'
   },
   {
     id: 'client-bernard',
@@ -209,8 +200,7 @@ const clients: Client[] = [
     email: 'bernard.petit@email.com',
     avatar: 'https://placehold.co/100x100.png?text=BP',
     address: '45 Avenue des Champs-Élysées, 75008 Paris',
-    phone: '06 98 76 54 32',
-    clientAvatar: undefined
+    phone: '06 98 76 54 32'
   },
   {
     id: 'client-carole',
@@ -218,8 +208,7 @@ const clients: Client[] = [
     email: 'carole.duval@email.com',
     avatar: 'https://placehold.co/100x100.png?text=CD',
     address: '78 Boulevard Saint-Germain, 75005 Paris',
-    phone: '06 11 22 33 44',
-    clientAvatar: undefined
+    phone: '06 11 22 33 44'
   },
   {
     id: 'client-david',
@@ -227,8 +216,7 @@ const clients: Client[] = [
     email: 'david.moreau@email.com',
     avatar: 'https://placehold.co/100x100.png?text=DM',
     address: '5 Rue du Faubourg Saint-Honoré, 75008 Paris',
-    phone: '06 55 66 77 88',
-    clientAvatar: undefined
+    phone: '06 55 66 77 88'
   },
   {
     id: 'client-innovatech',
@@ -236,8 +224,7 @@ const clients: Client[] = [
     email: 'contact@innovatech.com',
     avatar: 'https://placehold.co/100x100.png?text=SI',
     address: '1 Place de la Bourse, 75002 Paris',
-    phone: '01 23 45 67 89',
-    clientAvatar: undefined
+    phone: '01 23 45 67 89'
   }
 ];
 
@@ -261,7 +248,7 @@ export const user = {
 };
 
 
-export const appointments: (Omit<Appointment, 'caseId'> & {clientName: string, caseId: string})[] = cases.flatMap(c => c.appointments.map(a => ({...a, clientName: c.clientName, caseId: c.id})))
+export const appointments: (Appointment & {clientName: string})[] = cases.flatMap(c => c.appointments.map(a => ({...a, clientName: c.clientName, caseId: c.id})))
   .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
 export const conversations: Conversation[] = [
@@ -273,15 +260,8 @@ export const conversations: Conversation[] = [
         clientAvatar: 'https://placehold.co/100x100.png?text=AM',
         unreadCount: 1,
         messages: [
-            {
-              id: 'msg-1-1', senderId: 'emna.awini@gmail.com', content: "Bonjour Maître, avez-vous pu regarder les documents que je vous ai envoyés ?", timestamp: '2024-05-23T10:00:00Z',
-              read: undefined
-            },
-            {
-              id: 'msg-1-2', senderId: user.lawyer.email, content: "Bonjour Madame Martin, oui je les ai bien reçus. Je reviens vers vous rapidement.", timestamp: '2024-05-23T10:05:00Z',
-              read: undefined
-            },
-           
+            { id: 'msg-1-1', senderId: 'alice.martin@email.com', content: "Bonjour Maître, avez-vous pu regarder les documents que je vous ai envoyés ?", timestamp: '2024-05-23T10:00:00Z' },
+            { id: 'msg-1-2', senderId: user.lawyer.email, content: "Bonjour Madame Martin, oui je les ai bien reçus. Je reviens vers vous rapidement.", timestamp: '2024-05-23T10:05:00Z' },
         ]
     },
     {
@@ -292,14 +272,8 @@ export const conversations: Conversation[] = [
         clientAvatar: 'https://placehold.co/100x100.png?text=BP',
         unreadCount: 0,
         messages: [
-            {
-              id: 'msg-2-1', senderId: user.lawyer.email, content: "Monsieur Petit, j'ai bien avancé sur votre dossier. Pourriez-vous me fournir une copie de l'acte de propriété ?", timestamp: '2024-05-22T11:00:00Z',
-              read: undefined
-            },
-            {
-              id: 'msg-2-2', senderId: 'bernard.petit@email.com', content: "Bonjour Maître, oui bien sûr. Je vous envoie ça dans la journée. Merci.", timestamp: '2024-05-22T11:30:00Z',
-              read: undefined
-            },
+            { id: 'msg-2-1', senderId: user.lawyer.email, content: "Monsieur Petit, j'ai bien avancé sur votre dossier. Pourriez-vous me fournir une copie de l'acte de propriété ?", timestamp: '2024-05-22T11:00:00Z' },
+            { id: 'msg-2-2', senderId: 'bernard.petit@email.com', content: "Bonjour Maître, oui bien sûr. Je vous envoie ça dans la journée. Merci.", timestamp: '2024-05-22T11:30:00Z' },
         ]
     },
     {
@@ -310,14 +284,8 @@ export const conversations: Conversation[] = [
         clientAvatar: 'https://placehold.co/100x100.png?text=DM',
         unreadCount: 2,
         messages: [
-            {
-              id: 'msg-3-1', senderId: 'david.moreau@email.com', content: "Maître, l'artisan me relance pour le paiement. Que dois-je faire ?", timestamp: '2024-05-25T09:15:00Z',
-              read: undefined
-            },
-             {
-               id: 'msg-3-2', senderId: 'david.moreau@email.com', content: "Avez-vous eu le temps de regarder les photos des malfaçons ?", timestamp: '2024-05-25T09:16:00Z',
-               read: undefined
-             },
+            { id: 'msg-3-1', senderId: 'david.moreau@email.com', content: "Maître, l'artisan me relance pour le paiement. Que dois-je faire ?", timestamp: '2024-05-25T09:15:00Z' },
+            { id: 'msg-3-2', senderId: 'david.moreau@email.com', content: "Avez-vous eu le temps de regarder les photos des malfaçons ?", timestamp: '2024-05-25T09:16:00Z' },
         ]
     }
-]
+];

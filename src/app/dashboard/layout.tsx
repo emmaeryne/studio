@@ -19,7 +19,7 @@ import {
   SidebarTrigger,
   SidebarInset,
 } from "@/components/ui/sidebar";
-import { user, notifications as allNotifications } from "@/lib/data";
+import { user, notifications } from "@/lib/data";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { Briefcase, Search } from "lucide-react";
 import { Chatbot } from "@/components/chatbot";
@@ -32,7 +32,7 @@ export default function DashboardLayout({
 }) {
 
   const lawyerUser = user.lawyer;
-  const notifications = allNotifications.filter(n => n.userId === lawyerUser.email);
+  const lawyerNotifications = notifications.filter(n => n.userId === lawyerUser.email);
 
 
   return (
@@ -72,7 +72,7 @@ export default function DashboardLayout({
                 </form> */}
               </div>
               <Chatbot />
-              <NotificationBell userId={lawyerUser.email} notifications={notifications} />
+              <NotificationBell userId={lawyerUser.email} notifications={lawyerNotifications} />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="secondary" size="icon" className="rounded-full">
