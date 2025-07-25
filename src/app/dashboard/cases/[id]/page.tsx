@@ -1,3 +1,6 @@
+// This component needs to be a client component to handle state for the dropdown.
+"use client";
+
 import { notFound } from "next/navigation";
 import { cases } from "@/lib/data";
 import { Badge } from "@/components/ui/badge";
@@ -9,17 +12,48 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { CaseDocumentUploader } from "@/components/case-document-uploader";
 import { ArrowLeft, Briefcase, Calendar, Clock, FileText, User } from "lucide-react";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
+import { updateCaseStatus } from "@/lib/actions";
+import { useToast } from "@/hooks/use-toast";
+import type { Case } from "@/lib/data";
+import { useState } from "react";
 
 export default function CaseDetailPage({ params }: { params: { id: string } }) {
-  const caseItem = cases.find((c) => c.id === params.id);
+  const initialCase = cases.find((c) => c.id === params.id);
+  const { toast } = useToast();
+  
+  // Use state to manage the case item for real-time updates on the page
+  const [caseItem, setCaseItem] = useState(initialCase);
 
   if (!caseItem) {
     notFound();
   }
+
+  const handleStatusChange = async (newStatus: Case['status']) => {
+    const result = await updateCaseStatus(caseItem.id, newStatus);
+    if (result.success && result.updatedCase) {
+        setCaseItem(result.updatedCase as Case);
+        toast({
+            title: "Statut mis à jour",
+            description: `Le statut de l'affaire est maintenant : ${newStatus}`
+        });
+    } else {
+        toast({
+            variant: "destructive",
+            title: "Erreur",
+            description: result.error
+        });
+    }
+  };
   
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -30,6 +64,8 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
       default: return 'outline';
     }
   };
+
+  const allStatuses: Case['status'][] = ['Nouveau', 'En cours', 'En attente du client', 'Clôturé'];
 
   return (
     <div className="flex flex-col gap-6">
@@ -48,9 +84,20 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
         </div>
         <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Statut :</span>
-            <Badge variant={getStatusVariant(caseItem.status)} className="cursor-pointer">
-                {caseItem.status}
-            </Badge>
+             <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Badge variant={getStatusVariant(caseItem.status)} className="cursor-pointer">
+                        {caseItem.status}
+                    </Badge>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    {allStatuses.map(status => (
+                        <DropdownMenuItem key={status} onSelect={() => handleStatusChange(status)}>
+                            {status}
+                        </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
       </div>
       

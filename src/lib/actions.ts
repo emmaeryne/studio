@@ -294,3 +294,38 @@ export async function makePayment(invoiceId: string) {
         return { success: false, error: "Le paiement a échoué." };
     }
 }
+
+export async function updateCaseStatus(caseId: string, newStatus: Case['status']) {
+    try {
+        const caseItem = cases.find(c => c.id === caseId);
+        if (!caseItem) {
+            return { success: false, error: "Affaire non trouvée." };
+        }
+
+        caseItem.status = newStatus;
+        caseItem.lastUpdate = new Date().toISOString().split('T')[0];
+
+        // If the case is closed, notify the client.
+        if (newStatus === 'Clôturé') {
+            notifications.push({
+                id: `notif-${Date.now()}`,
+                userId: caseItem.clientId,
+                message: `Votre affaire ${caseItem.caseNumber} a été clôturée.`,
+                read: false,
+                date: new Date().toISOString()
+            });
+            // Revalidate client layout to update their notification bell
+            revalidatePath(`/client/layout`);
+        }
+        
+        // Revalidate paths to reflect the status change
+        revalidatePath('/dashboard/cases');
+        revalidatePath(`/dashboard/cases/${caseId}`);
+        revalidatePath(`/client/cases/${caseId}`);
+
+        return { success: true, updatedCase: caseItem };
+    } catch (error) {
+        console.error(error);
+        return { success: false, error: "La mise à jour du statut a échoué." };
+    }
+}
