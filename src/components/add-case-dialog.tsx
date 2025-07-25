@@ -52,7 +52,6 @@ export function AddCaseDialog({ children, onCaseAdded }: { children: React.React
         });
         onCaseAdded(result.newCase);
         setOpen(false);
-        router.refresh(); // Refresh the page to show the new case
       } else {
         throw new Error(result.error || "Failed to add case");
       }
