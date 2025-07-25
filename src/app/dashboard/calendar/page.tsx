@@ -70,7 +70,7 @@ export default function CalendarPage() {
       const res = await updateAppointmentStatus(id, "Confirmé");
       if (res.success && res.updatedAppointment) {
         setAppointments((prev) =>
-          prev.map((a) => (a.id === id ? { ...a, status: 'Confirmé' } : a))
+          prev.map((a) => (a.id === id ? { ...a, status: 'Confirmé', clientName: a.clientName } : a))
         );
         toast({
           title: "Statut mis à jour",
@@ -91,7 +91,7 @@ export default function CalendarPage() {
   
   const handleRescheduleSuccess = (updatedAppointment: Appointment) => {
     setAppointments((prev) =>
-      prev.map((a) => (a.id === updatedAppointment.id ? { ...a, ...updatedAppointment, status: 'Reporté' } : a))
+      prev.map((a) => (a.id === updatedAppointment.id ? { ...a, ...updatedAppointment, status: 'Reporté', clientName: a.clientName } : a))
     );
      router.refresh(); 
   }

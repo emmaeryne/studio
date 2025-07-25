@@ -96,7 +96,7 @@ export default function DashboardPage() {
   
   const handleRescheduleSuccess = (updatedAppointment: Appointment) => {
     setAppointments((prev) =>
-      prev.map((a) => (a.id === updatedAppointment.id ? { ...a, ...updatedAppointment, status: 'Reporté' } : a))
+      prev.map((a) => (a.id === updatedAppointment.id ? { ...a, ...updatedAppointment, clientName: a.clientName } : a))
     );
      router.refresh(); 
   }
@@ -210,7 +210,7 @@ export default function DashboardPage() {
                         {caseItem.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">{new Date(caseItem.submittedDate).toLocaleDateString('fr-FR')}</TableCell>
+                    <TableCell className="text-right">{new Date(caseItem.lastUpdate).toLocaleDateString('fr-FR')}</TableCell>
                     <TableCell className="text-right">
                       <Link href={`/dashboard/cases/${caseItem.id}`}>
                         <Button variant="outline" size="sm">
