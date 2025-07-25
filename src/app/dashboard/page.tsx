@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,11 +18,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { cases, appointments, user } from "@/lib/data";
-import { Briefcase, CheckCircle2, Archive, Clock, ArrowUpRight, PlusCircle, Calendar as CalendarIcon } from "lucide-react";
+import { cases, appointments as initialAppointments, user } from "@/lib/data";
+import { Briefcase, CheckCircle2, Archive, Clock, ArrowUpRight, PlusCircle, Calendar as CalendarIcon, Check, X } from "lucide-react";
 import { AddCaseDialog } from "@/components/add-case-dialog";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { updateAppointmentStatus } from "@/lib/actions";
+import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
+  const [appointments, setAppointments] = useState(initialAppointments);
+  const { toast } = useToast();
+  const router = useRouter();
+
   const stats = {
     total: cases.length,
     inProgress: cases.filter((c) => c.status === "En cours").length,
@@ -32,7 +42,10 @@ export default function DashboardPage() {
     .sort((a, b) => new Date(b.submittedDate).getTime() - new Date(a.submittedDate).getTime())
     .slice(0, 5);
 
-  const upcomingAppointments = appointments.filter(a => new Date(a.date) >= new Date()).slice(0, 5);
+  const upcomingAppointments = appointments
+    .filter(a => new Date(a.date) >= new Date())
+    .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(0, 5);
   
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -43,6 +56,40 @@ export default function DashboardPage() {
       default: return 'outline';
     }
   };
+  
+  const getAppointmentStatusVariant = (status: string) => {
+    switch (status) {
+      case 'Confirmé': return 'default';
+      case 'En attente': return 'secondary';
+      case 'Annulé': return 'destructive';
+      default: return 'outline';
+    }
+  };
+
+  const handleStatusUpdate = async (id: string, status: "Confirmé" | "Annulé") => {
+    try {
+      const res = await updateAppointmentStatus(id, status);
+      if (res.success) {
+        setAppointments((prev) =>
+          prev.map((a) => (a.id === id ? { ...a, status } : a))
+        );
+        toast({
+          title: "Statut mis à jour",
+          description: `Le rendez-vous a été ${status.toLowerCase()}.`,
+        });
+        router.refresh(); 
+      } else {
+        throw new Error(res.error);
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Échec de la mise à jour du statut.",
+      });
+    }
+  };
+
 
   return (
     <div className="flex flex-col gap-6">
@@ -170,18 +217,29 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="grid gap-4">
              {upcomingAppointments.length > 0 ? (
-              upcomingAppointments.map((appointment, index) => (
-              <div key={index} className="flex items-center gap-4">
+              upcomingAppointments.map((appointment) => (
+              <div key={appointment.id} className="flex items-center gap-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-accent-foreground">
                   <CalendarIcon className="h-5 w-5" />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium leading-none">{appointment.clientName}</p>
                   <p className="text-sm text-muted-foreground">{appointment.notes}</p>
+                  <div className="text-xs text-muted-foreground">{new Date(appointment.date).toLocaleDateString()} - {appointment.time}</div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium">{new Date(appointment.date).toLocaleDateString()}</p>
-                  <p className="text-sm text-muted-foreground">{appointment.time}</p>
+                <div className="text-right flex flex-col items-end gap-1">
+                    {appointment.status === 'En attente' ? (
+                        <div className="flex items-center gap-1">
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleStatusUpdate(appointment.id, 'Annulé')}>
+                                <X className="h-4 w-4 text-destructive"/>
+                            </Button>
+                             <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleStatusUpdate(appointment.id, 'Confirmé')}>
+                                <Check className="h-4 w-4 text-green-600"/>
+                            </Button>
+                        </div>
+                    ) : (
+                       <Badge variant={getAppointmentStatusVariant(appointment.status)}>{appointment.status}</Badge>
+                    )}
                 </div>
               </div>
             ))
