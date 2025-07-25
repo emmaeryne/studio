@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
-import { appointments as initialAppointments, cases } from "@/lib/data";
+import { appointments as initialAppointments } from "@/lib/data";
 
 
 // Type definitions for better type safety
