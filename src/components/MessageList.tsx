@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Conversation } from "@/lib/data";
@@ -8,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface MessageListProps {
   conversations: Conversation[];
-  selectedConversationId: string;
+  selectedConversationId?: string;
   onSelectConversation: (id: string) => void;
   currentUserId: string;
   searchQuery: string;
@@ -26,9 +27,11 @@ export function MessageList({
       convo.clientName.toLowerCase().includes(searchQuery.toLowerCase())
     )
     .sort((a, b) => {
-      const lastMessageA = a.messages[a.messages.length - 1]?.timestamp || "0";
-      const lastMessageB = b.messages[b.messages.length - 1]?.timestamp || "0";
-      return new Date(lastMessageB).getTime() - new Date(lastMessageA).getTime();
+      const lastMessageA = a.messages?.[a.messages.length - 1];
+      const lastMessageB = b.messages?.[b.messages.length - 1];
+      const timeA = lastMessageA ? new Date(lastMessageA.timestamp).getTime() : 0;
+      const timeB = lastMessageB ? new Date(lastMessageB.timestamp).getTime() : 0;
+      return timeB - timeA;
     });
 
   return (
@@ -57,7 +60,7 @@ export function MessageList({
               <div className="flex-1 truncate">
                 <p className="font-semibold text-sm">{convo.clientName}</p>
                 <p className="text-xs text-muted-foreground truncate">
-                  {convo.messages[convo.messages.length - 1]?.content}
+                  {convo.messages?.[convo.messages.length - 1]?.content}
                 </p>
               </div>
               {convo.unreadCount > 0 && (
