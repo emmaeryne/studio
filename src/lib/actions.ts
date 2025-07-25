@@ -73,12 +73,13 @@ export async function addCase(newCaseData: { clientName: string; caseType: Case[
         if (querySnapshot.empty) {
             const newClientRef = doc(collection(db, 'clients'));
             const newClientData = {
+                id: newClientRef.id,
                 name: newCaseData.clientName,
                 email: `${newCaseData.clientName.toLowerCase().replace(/\s/g, '.')}@example.com`,
                 avatar: `https://placehold.co/100x100.png?text=${newCaseData.clientName.charAt(0)}`
             };
             await setDoc(newClientRef, newClientData);
-            client = { id: newClientRef.id, ...newClientData };
+            client = newClientData;
         } else {
             const clientDoc = querySnapshot.docs[0];
             client = { id: clientDoc.id, ...clientDoc.data() } as Client;
@@ -141,7 +142,7 @@ export async function addClientCase(newCase: { caseType: Case['caseType']; descr
         documents: [],
         appointments: [],
         keyDeadlines: [],
-        _estimate: caseEstimate ?? undefined,
+        ...(caseEstimate && { _estimate: caseEstimate }),
     };
     
     const docRef = await addDoc(collection(db, 'cases'), newCaseData);
@@ -511,4 +512,3 @@ export async function getCaseCostEstimate(input: EstimateCaseCostInput): Promise
         return { success: false, error: 'L\'estimation du coût a échoué.' };
     }
 }
-
