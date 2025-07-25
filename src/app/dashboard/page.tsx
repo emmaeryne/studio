@@ -30,7 +30,7 @@ import { RescheduleAppointmentDialog } from "@/components/reschedule-appointment
 
 export default function DashboardPage() {
   const [appointments, setAppointments] = useState<(Appointment & { clientName: string })[]>(initialAppointments);
-  const [appointmentToReschedule, setAppointmentToReschedule] = useState<Appointment & { clientName: string } | null>(null);
+  const [appointmentToReschedule, setAppointmentToReschedule] = useState<(Appointment & { clientName: string }) | null>(null);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -210,7 +210,7 @@ export default function DashboardPage() {
                         {caseItem.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">{new Date(caseItem.submittedDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</TableCell>
+                    <TableCell className="text-right">{new Date(caseItem.submittedDate).toLocaleDateString('fr-FR')}</TableCell>
                     <TableCell className="text-right">
                       <Link href={`/dashboard/cases/${caseItem.id}`}>
                         <Button variant="outline" size="sm">
