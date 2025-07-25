@@ -6,16 +6,16 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { sendMessage, getClientConversations } from "@/lib/actions";
+import { sendMessage, getClientConversations, getLawyerProfile } from "@/lib/actions";
 import { MessageList } from "@/components/MessageList";
 import { MessageView } from "@/components/MessageView";
-import { staticUserData, type Conversation } from "@/lib/data";
+import { staticUserData, type Conversation, type Client, type Lawyer } from "@/lib/data";
 import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
 import { AvatarImage } from "@/components/ui/avatar";
 
 export default function ClientMessagesPage() {
-  const clientUser = staticUserData.currentUser;
-  
+  const [clientUser, setClientUser] = useState<Client | null>(null);
+  const [lawyer, setLawyer] = useState<Lawyer | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | undefined>();
   const [newMessage, setNewMessage] = useState("");
@@ -24,22 +24,27 @@ export default function ClientMessagesPage() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const fetchConversations = async () => {
-        const clientConversations = await getClientConversations(clientUser.id);
-        setConversations(clientConversations);
-        if (clientConversations.length > 0) {
-            setSelectedConversationId(clientConversations[0].id);
+    const fetchData = async () => {
+        const clientProfile = await getClientConversations(staticUserData.currentUser.id);
+        const lawyerProfile = await getLawyerProfile(staticUserData.lawyer.id);
+
+        setClientUser(staticUserData.currentUser as Client);
+        setLawyer(lawyerProfile);
+        setConversations(clientProfile);
+
+        if (clientProfile.length > 0) {
+            setSelectedConversationId(clientProfile[0].id);
         }
     };
-    fetchConversations();
-  }, [clientUser.id]);
+    fetchData();
+  }, []);
 
 
   const selectedConversation = conversations.find(c => c.id === selectedConversationId);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedConversationId) return;
+    if (!newMessage.trim() || !selectedConversationId || !clientUser) return;
 
     try {
       const sentMessage = await sendMessage(selectedConversationId, newMessage, clientUser.id);
@@ -79,7 +84,7 @@ export default function ClientMessagesPage() {
     }
   }, [selectedConversation?.messages.length]);
   
-  if (conversations.length === 0) {
+  if (conversations.length === 0 || !clientUser || !lawyer) {
     return (
         <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 h-full flex flex-col items-center justify-center">
             <Card className="p-8 text-center">
@@ -126,12 +131,12 @@ export default function ClientMessagesPage() {
             <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={staticUserData.lawyer.avatar} alt={staticUserData.lawyer.name} />
-                  <AvatarFallback>{staticUserData.lawyer.name.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={lawyer.avatar} alt={lawyer.name} />
+                  <AvatarFallback>{lawyer.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
                   <CardTitle className="font-headline text-lg">
-                    {staticUserData.lawyer.name}
+                    {lawyer.name}
                   </CardTitle>
                   <p className="text-sm text-muted-foreground">
                     Affaire: {selectedConversation.caseNumber}
@@ -143,8 +148,8 @@ export default function ClientMessagesPage() {
               <MessageView
                 conversation={selectedConversation}
                 currentUserId={clientUser.id}
-                lawyerName={staticUserData.lawyer.name}
-                lawyerAvatar={staticUserData.lawyer.avatar}
+                lawyerName={lawyer.name}
+                lawyerAvatar={lawyer.avatar}
                 newMessage={newMessage}
                 onNewMessageChange={setNewMessage}
                 onSendMessage={handleSendMessage}

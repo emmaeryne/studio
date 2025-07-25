@@ -6,14 +6,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { sendMessage, getConversations } from "@/lib/actions";
+import { sendMessage, getConversations, getLawyerProfile } from "@/lib/actions";
 import { MessageList } from "@/components/MessageList";
 import { MessageView } from "@/components/MessageView";
-import { staticUserData, Conversation } from "@/lib/data";
+import { staticUserData, type Conversation, type Lawyer } from "@/lib/data";
 import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
 import { AvatarImage } from "@/components/ui/avatar";
 
 export default function LawyerMessagesPage() {
+  const [lawyer, setLawyer] = useState<Lawyer | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | undefined>();
   const [newMessage, setNewMessage] = useState("");
@@ -24,7 +25,11 @@ export default function LawyerMessagesPage() {
   useEffect(() => {
     const fetchConversations = async () => {
         const allConversations = await getConversations();
+        const lawyerProfile = await getLawyerProfile(staticUserData.lawyer.id);
+        
+        setLawyer(lawyerProfile);
         setConversations(allConversations);
+
         if (allConversations.length > 0) {
             setSelectedConversationId(allConversations[0].id);
         }
@@ -36,10 +41,10 @@ export default function LawyerMessagesPage() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedConversationId) return;
+    if (!newMessage.trim() || !selectedConversationId || !lawyer) return;
 
     try {
-      const sentMessage = await sendMessage(selectedConversationId, newMessage, staticUserData.lawyer.id);
+      const sentMessage = await sendMessage(selectedConversationId, newMessage, lawyer.id);
 
       if (sentMessage.success && sentMessage.newMessage) {
          setConversations(prev => 
@@ -75,6 +80,10 @@ export default function LawyerMessagesPage() {
     }
   }, [selectedConversation?.messages.length]);
 
+  if (!lawyer) {
+      return <div>Chargement...</div>;
+  }
+
   return (
     <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 h-[calc(100vh-4rem)] flex flex-col">
       <div className="flex items-center justify-between mb-6">
@@ -98,7 +107,7 @@ export default function LawyerMessagesPage() {
               conversations={conversations}
               selectedConversationId={selectedConversationId}
               onSelectConversation={setSelectedConversationId}
-              currentUserId={staticUserData.lawyer.id}
+              currentUserId={lawyer.id}
               searchQuery={searchQuery}
             />
           </ScrollArea>
@@ -125,9 +134,9 @@ export default function LawyerMessagesPage() {
             <ScrollArea className="flex-1" ref={scrollAreaRef}>
                 <MessageView
                 conversation={selectedConversation}
-                currentUserId={staticUserData.lawyer.id}
-                lawyerName={staticUserData.lawyer.name}
-                lawyerAvatar={staticUserData.lawyer.avatar}
+                currentUserId={lawyer.id}
+                lawyerName={lawyer.name}
+                lawyerAvatar={lawyer.avatar}
                 newMessage={newMessage}
                 onNewMessageChange={setNewMessage}
                 onSendMessage={handleSendMessage}
