@@ -1,8 +1,8 @@
-// This component needs to be a client component to handle state for the dropdown.
+
 "use client";
 
 import { notFound, useParams } from "next/navigation";
-import { cases } from "@/lib/data";
+import { getCaseById, updateCaseStatus } from "@/lib/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +22,6 @@ import { CaseDocumentUploader } from "@/components/case-document-uploader";
 import { ArrowLeft, Briefcase, FileText, Clock } from "lucide-react";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
-import { updateCaseStatus } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
 import type { Case } from "@/lib/data";
 import { useState, useEffect } from "react";
@@ -35,8 +34,11 @@ export default function CaseDetailPage() {
   const [caseItem, setCaseItem] = useState<Case | null | undefined>(undefined);
   
   useEffect(() => {
-    const foundCase = cases.find((c) => c.id === id);
-    setCaseItem(foundCase || null);
+    const fetchCase = async () => {
+        const foundCase = await getCaseById(id);
+        setCaseItem(foundCase);
+    }
+    fetchCase();
   }, [id]);
 
   if (caseItem === undefined) {
@@ -144,7 +146,7 @@ export default function CaseDetailPage() {
             </CardHeader>
             <CardContent>
                <ul className="space-y-3 text-sm">
-                {caseItem.documents.length > 0 ? caseItem.documents.map((doc, i) => (
+                {caseItem.documents && caseItem.documents.length > 0 ? caseItem.documents.map((doc, i) => (
                   <li key={i} className="flex items-center justify-between p-2 rounded-md border">
                     <Link href={doc.url} className="text-primary hover:underline truncate pr-2 flex items-center gap-2">
                         <FileText className="h-4 w-4"/>
@@ -166,7 +168,7 @@ export default function CaseDetailPage() {
             </CardHeader>
             <CardContent>
               <ul className="space-y-3 text-sm">
-                {caseItem.keyDeadlines.length > 0 ? caseItem.keyDeadlines.map((deadline, i) => (
+                {caseItem.keyDeadlines && caseItem.keyDeadlines.length > 0 ? caseItem.keyDeadlines.map((deadline, i) => (
                   <li key={i} className="flex items-start gap-3">
                      <Clock className="h-4 w-4 mt-0.5 text-muted-foreground" />
                     <div>

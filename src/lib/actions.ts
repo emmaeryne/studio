@@ -1,119 +1,201 @@
 
 'use server'
 
+import { db } from './firebase';
+import { collection, getDocs, doc, addDoc, updateDoc, setDoc, getDoc, query, where, orderBy, writeBatch, deleteDoc, Timestamp } from 'firebase/firestore';
+
 import { summarizeCaseDocuments } from '@/ai/flows/summarize-case-documents';
 import type { SummarizeCaseDocumentsInput } from '@/ai/flows/summarize-case-documents';
 import { askChatbot } from '@/ai/flows/chatbot';
 import type { ChatbotInput } from '@/ai/flows/chatbot';
 import { estimateCaseCost } from '@/ai/flows/estimate-case-cost';
 import type { EstimateCaseCostInput, EstimateCaseCostOutput } from '@/ai/flows/estimate-case-cost';
-import { cases, user, type CaseDocument, conversations, type Lawyer, type Message, type Client, appointments as allAppointments, type Case, type Appointment, invoices, notifications } from './data';
+import { staticUserData, type CaseDocument, type Lawyer, type Message, type Client, type Case, type Appointment, type Invoice, type Conversation, type Notification } from './data';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
-export async function getSummary(input: SummarizeCaseDocumentsInput) {
-  try {
-    const result = await summarizeCaseDocuments(input);
-    return { success: true, summary: result.summary };
-  } catch (error) {
-    console.error(error);
-    return { success: false, error: 'La génération du résumé a échoué.' };
-  }
+// Helper function to convert Firestore Timestamps to strings
+const convertTimestamps = (data: any) => {
+    for (const key in data) {
+        if (data[key] instanceof Timestamp) {
+            data[key] = data[key].toDate().toISOString();
+        } else if (typeof data[key] === 'object' && data[key] !== null) {
+            convertTimestamps(data[key]);
+        }
+    }
+    return data;
+};
+
+
+// Generic function to fetch a collection
+async function getCollection<T>(collectionName: string): Promise<T[]> {
+    const querySnapshot = await getDocs(collection(db, collectionName));
+    return querySnapshot.docs.map(doc => convertTimestamps({ id: doc.id, ...doc.data() } as any));
+}
+
+// Generic function to fetch a document by ID
+async function getDocument<T>(collectionName: string, id: string): Promise<T | null> {
+    const docRef = doc(db, collectionName, id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        return convertTimestamps({ id: docSnap.id, ...docSnap.data() } as any);
+    }
+    return null;
+}
+
+// --- Case Actions ---
+export async function getCases(): Promise<Case[]> {
+    const casesCollection = collection(db, 'cases');
+    const q = query(casesCollection, orderBy('submittedDate', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => convertTimestamps({ id: doc.id, ...doc.data() } as any));
+}
+
+export async function getCaseById(id: string): Promise<Case | null> {
+    return getDocument<Case>('cases', id);
+}
+
+export async function getClientCases(clientId: string): Promise<Case[]> {
+    const casesCollection = collection(db, 'cases');
+    const q = query(casesCollection, where('clientId', '==', clientId), orderBy('submittedDate', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => convertTimestamps({ id: doc.id, ...doc.data() } as any));
 }
 
 export async function addCase(newCaseData: { clientName: string; caseType: Case['caseType']; description: string }) {
     try {
-        const nextId = (Math.max(0, ...cases.map(c => parseInt(c.id, 10))) + 1).toString();
-        const nextCaseNumber = `CASE-${String(cases.length + 1).padStart(3, '0')}`;
-        const currentDate = new Date().toISOString().split('T')[0];
-
-        // Find existing client or create a new one
-        let client = user.clients.find(c => c.name.toLowerCase() === newCaseData.clientName.toLowerCase());
+        const clientsCollection = collection(db, 'clients');
+        const q = query(clientsCollection, where("name", "==", newCaseData.clientName));
+        const querySnapshot = await getDocs(q);
         
-        if (!client) {
-            const newClientId = `client-${newCaseData.clientName.toLowerCase().replace(/\s/g, '-')}-${Date.now()}`;
+        let client: Client;
+
+        if (querySnapshot.empty) {
+            const newClientRef = doc(clientsCollection);
             client = {
-                id: newClientId,
+                id: newClientRef.id,
                 name: newCaseData.clientName,
-                email: `${newCaseData.clientName.toLowerCase().replace(/\s/g, '.')}@email.com`,
+                email: `${newCaseData.clientName.toLowerCase().replace(/\s/g, '.')}@example.com`,
                 avatar: `https://placehold.co/100x100.png?text=${newCaseData.clientName.charAt(0)}`
             };
-            user.clients.push(client); // Add the new client to the list
+            await setDoc(newClientRef, client);
+        } else {
+            client = { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() } as Client;
         }
+        
+        const casesCountSnapshot = await getDocs(collection(db, 'cases'));
+        const nextCaseNumber = `CASE-${String(casesCountSnapshot.size + 1).padStart(3, '0')}`;
+        const currentDate = new Date();
 
-        const newCase: Case = {
-            id: nextId,
+        const newCase: Omit<Case, 'id' | '_estimate'> = {
             caseNumber: nextCaseNumber,
             clientName: client.name,
             clientId: client.id,
             clientAvatar: client.avatar,
             caseType: newCaseData.caseType,
             status: 'Nouveau',
-            submittedDate: currentDate,
-            lastUpdate: currentDate,
+            submittedDate: currentDate.toISOString(),
+            lastUpdate: currentDate.toISOString(),
             description: newCaseData.description,
             documents: [],
             appointments: [],
             keyDeadlines: [],
         };
         
-        cases.unshift(newCase);
-
+        const docRef = await addDoc(collection(db, 'cases'), newCase);
+        
         revalidatePath('/dashboard/cases');
-        return { success: true, newCase };
+        return { success: true, newCase: {id: docRef.id, ...newCase } };
     } catch (error) {
-        console.error(error);
+        console.error("Error adding case: ", error);
         return { success: false, error: 'Failed to add case.' };
     }
 }
 
 export async function addClientCase(newCase: { caseType: Case['caseType']; description: string }) {
-    // In a real app, current user would come from session
-    const currentUser = user.currentUser;
+    const currentUser = staticUserData.currentUser;
+    const currentDate = new Date();
 
-    const nextId = (Math.max(0, ...cases.map(c => parseInt(c.id))) + 1).toString();
-    const nextCaseNumber = `CASE-${String(cases.length + 1).padStart(3, '0')}`;
-    const currentDate = new Date().toISOString().split('T')[0];
-    
     let caseEstimate: EstimateCaseCostOutput | null = null;
     try {
         caseEstimate = await estimateCaseCost(newCase);
     } catch(e) {
         console.error("Failed to get estimate", e);
     }
+    
+    const casesCountSnapshot = await getDocs(collection(db, 'cases'));
+    const nextCaseNumber = `CASE-${String(casesCountSnapshot.size + 1).padStart(3, '0')}`;
 
-    const newCaseData: Case = {
-        id: nextId,
+    const newCaseData: Omit<Case, 'id'> = {
         caseNumber: nextCaseNumber,
         clientName: currentUser.name,
         clientId: currentUser.id,
         clientAvatar: currentUser.avatar,
         caseType: newCase.caseType,
         status: 'Nouveau',
-        submittedDate: currentDate,
-        lastUpdate: currentDate,
+        submittedDate: currentDate.toISOString(),
+        lastUpdate: currentDate.toISOString(),
         description: newCase.description,
         documents: [],
         appointments: [],
         keyDeadlines: [],
-        // Temporary store the estimate to show on the detail page
         _estimate: caseEstimate ?? undefined,
     };
-    cases.push(newCaseData);
+    
+    const docRef = await addDoc(collection(db, 'cases'), newCaseData);
     
     revalidatePath('/client/cases');
-    revalidatePath(`/client/cases/${nextId}`);
+    revalidatePath(`/client/cases/${docRef.id}`);
 
-    return { success: true, newCaseId: nextId };
+    return { success: true, newCaseId: docRef.id };
 }
 
 
-export async function addDocumentToCase(caseId: string, document: CaseDocument) {
+export async function updateCaseStatus(caseId: string, newStatus: Case['status']) {
     try {
-        const caseItem = cases.find(c => c.id === caseId);
-        if (caseItem) {
-            caseItem.documents.push(document);
-            caseItem.lastUpdate = new Date().toISOString().split('T')[0];
+        const caseRef = doc(db, "cases", caseId);
+        await updateDoc(caseRef, {
+            status: newStatus,
+            lastUpdate: new Date().toISOString()
+        });
+        
+        const caseItem = await getDoc(caseRef);
+        if (!caseItem.exists()) return { success: false, error: "Case not found."};
+
+        if (newStatus === 'Clôturé') {
+            await addDoc(collection(db, "notifications"), {
+                 userId: caseItem.data().clientId,
+                 message: `Votre affaire ${caseItem.data().caseNumber} a été clôturée.`,
+                 read: false,
+                 date: new Date().toISOString()
+            });
+            revalidatePath(`/client/layout`);
+        }
+        
+        revalidatePath('/dashboard/cases');
+        revalidatePath(`/dashboard/cases/${caseId}`);
+        revalidatePath('/client/cases');
+        revalidatePath(`/client/cases/${caseId}`);
+
+        return { success: true, updatedCase: {id: caseId, ...caseItem.data()} as Case };
+    } catch (error) {
+        console.error(error);
+        return { success: false, error: "La mise à jour du statut a échoué." };
+    }
+}
+
+// --- Document Actions ---
+export async function addDocumentToCase(caseId: string, documentData: CaseDocument) {
+    try {
+        const caseRef = doc(db, "cases", caseId);
+        const caseSnap = await getDoc(caseRef);
+        if (caseSnap.exists()) {
+            const caseData = caseSnap.data() as Case;
+            const updatedDocuments = [...(caseData.documents || []), documentData];
+            await updateDoc(caseRef, { 
+                documents: updatedDocuments,
+                lastUpdate: new Date().toISOString()
+            });
             revalidatePath(`/dashboard/cases/${caseId}`);
             revalidatePath(`/client/cases/${caseId}`);
             return { success: true };
@@ -125,6 +207,287 @@ export async function addDocumentToCase(caseId: string, document: CaseDocument) 
     }
 }
 
+// --- Appointment Actions ---
+export async function getAppointments(): Promise<(Appointment & { clientName: string })[]> {
+    return getCollection<(Appointment & { clientName: string })>('appointments');
+}
+
+
+export async function requestAppointment(appointmentData: { caseId: string, date: string, time: string, notes: string }) {
+    try {
+        const caseItem = await getCaseById(appointmentData.caseId);
+        if (!caseItem) return { success: false, error: "Affaire non trouvée" };
+
+        const newAppointmentRef = doc(collection(db, 'appointments'));
+        const newAppointment: Appointment & { clientName: string } = {
+            id: newAppointmentRef.id,
+            ...appointmentData,
+            clientName: caseItem.clientName,
+            status: 'En attente'
+        };
+        await setDoc(newAppointmentRef, newAppointment);
+        
+        const caseRef = doc(db, "cases", appointmentData.caseId);
+        const caseSnap = await getDoc(caseRef);
+        const existingAppointments = caseSnap.data()?.appointments || [];
+        await updateDoc(caseRef, {
+            appointments: [...existingAppointments, { id: newAppointment.id, date: newAppointment.date, time: newAppointment.time, notes: newAppointment.notes, status: newAppointment.status }]
+        });
+        
+        revalidatePath('/dashboard/calendar');
+        revalidatePath('/dashboard');
+        revalidatePath(`/client/cases/${caseItem.id}`);
+        return { success: true };
+    } catch(error) {
+        console.error(error);
+        return { success: false, error: "La demande de rendez-vous a échoué" };
+    }
+}
+
+export async function updateAppointmentStatus(appointmentId: string, status: Appointment['status']) {
+    try {
+        const appointmentRef = doc(db, 'appointments', appointmentId);
+        await updateDoc(appointmentRef, { status });
+
+        const updatedAppointmentSnap = await getDoc(appointmentRef);
+        if (!updatedAppointmentSnap.exists()) return { success: false, error: 'Appointment not found.' };
+        const updatedAppointment = updatedAppointmentSnap.data() as Appointment;
+        
+        const caseRef = doc(db, "cases", updatedAppointment.caseId);
+        const caseSnap = await getDoc(caseRef);
+        if (caseSnap.exists()) {
+            const caseAppointments = caseSnap.data().appointments.map((app: any) => 
+                app.id === appointmentId ? { ...app, status } : app
+            );
+            await updateDoc(caseRef, { appointments: caseAppointments });
+
+            const client = await getDocument<Client>('clients', caseSnap.data().clientId);
+            if (client) {
+                 await addDoc(collection(db, "notifications"), {
+                    userId: client.id,
+                    message: `Votre rendez-vous du ${new Date(updatedAppointment.date).toLocaleDateString('fr-FR')} à ${updatedAppointment.time} a été ${status.toLowerCase()}.`,
+                    read: false,
+                    date: new Date().toISOString()
+                });
+            }
+        }
+
+        revalidatePath('/dashboard/calendar');
+        revalidatePath('/dashboard');
+        revalidatePath(`/client/cases/${updatedAppointment.caseId}`);
+        revalidatePath(`/client/layout`);
+        return { success: true, updatedAppointment: convertTimestamps({id: appointmentId, ...updatedAppointment}) };
+    } catch(error) {
+        console.error(error);
+        return { success: false, error: 'Impossible de mettre à jour le statut du rendez-vous' };
+    }
+}
+
+export async function rescheduleAppointment(appointmentData: { appointmentId: string, newDate: string, newTime: string }) {
+    try {
+        const { appointmentId, newDate, newTime } = appointmentData;
+        const appointmentRef = doc(db, 'appointments', appointmentId);
+        await updateDoc(appointmentRef, {
+            date: newDate,
+            time: newTime,
+            status: 'Reporté'
+        });
+
+        const updatedAppointmentSnap = await getDoc(appointmentRef);
+        if (!updatedAppointmentSnap.exists()) return { success: false, error: 'Appointment not found.' };
+        const updatedAppointment = updatedAppointmentSnap.data() as Appointment;
+
+        const caseRef = doc(db, "cases", updatedAppointment.caseId);
+        const caseSnap = await getDoc(caseRef);
+         if (caseSnap.exists()) {
+            const caseAppointments = caseSnap.data().appointments.map((app: any) => 
+                app.id === appointmentId ? { ...app, date: newDate, time: newTime, status: 'Reporté' } : app
+            );
+            await updateDoc(caseRef, { appointments: caseAppointments });
+
+            const client = await getDocument<Client>('clients', caseSnap.data().clientId);
+            if (client) {
+                 await addDoc(collection(db, "notifications"), {
+                    userId: client.id,
+                    message: `Votre rendez-vous a été reporté au ${new Date(newDate).toLocaleDateString('fr-FR')} à ${newTime}.`,
+                    read: false,
+                    date: new Date().toISOString()
+                });
+            }
+        }
+        
+        revalidatePath('/dashboard/calendar');
+        revalidatePath('/dashboard');
+        revalidatePath(`/client/cases/${updatedAppointment.caseId}`);
+        revalidatePath(`/client/layout`);
+        return { success: true, updatedAppointment: convertTimestamps({id: appointmentId, ...updatedAppointment}) };
+    } catch (e) {
+        console.error(e);
+        return { success: false, error: "La modification du rendez-vous a échoué" };
+    }
+}
+
+// --- User/Profile Actions ---
+export async function getLawyerProfile(id: string): Promise<Lawyer | null> {
+    return getDocument<Lawyer>('users', id);
+}
+
+export async function getClientProfile(id: string): Promise<Client | null> {
+    return getDocument<Client>('clients', id);
+}
+
+export async function updateLawyerProfile(updatedLawyer: Omit<Lawyer, 'id'>) {
+    try {
+        const lawyerId = staticUserData.lawyer.id;
+        const lawyerRef = doc(db, "users", lawyerId);
+        await setDoc(lawyerRef, updatedLawyer, { merge: true });
+        revalidatePath('/dashboard/profile');
+        return { success: true }
+    } catch(error) {
+        console.error(error);
+        return { success: false, error: "Failed to update profile." };
+    }
+}
+
+export async function updateClientProfile(updatedClient: Omit<Client, 'id'>) {
+    try {
+        const clientId = staticUserData.currentUser.id;
+        const clientRef = doc(db, "clients", clientId);
+        await setDoc(clientRef, updatedClient, { merge: true });
+
+        // Update name in cases
+        const casesQuery = query(collection(db, 'cases'), where('clientId', '==', clientId));
+        const casesSnapshot = await getDocs(casesQuery);
+        const batch = writeBatch(db);
+        casesSnapshot.docs.forEach(caseDoc => {
+            batch.update(caseDoc.ref, { clientName: updatedClient.name });
+        });
+        await batch.commit();
+
+        revalidatePath('/client/profile');
+        revalidatePath('/client/layout');
+        return { success: true };
+    } catch(error) {
+        console.error(error);
+        return { success: false, error: "Failed to update profile." };
+    }
+}
+
+// --- Message Actions ---
+export async function getConversations(): Promise<Conversation[]> {
+    return getCollection<Conversation>('conversations');
+}
+export async function getClientConversations(clientId: string): Promise<Conversation[]> {
+     const convosCollection = collection(db, 'conversations');
+    const q = query(convosCollection, where('clientId', '==', clientId));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => convertTimestamps({ id: doc.id, ...doc.data() } as any));
+}
+
+export async function sendMessage(conversationId: string, content: string, senderId: string) {
+    try {
+        const conversationRef = doc(db, "conversations", conversationId);
+        const conversationSnap = await getDoc(conversationRef);
+        if(!conversationSnap.exists()) return { success: false, error: "Conversation not found" };
+
+        const newMessage: Message = {
+            id: `msg-${Date.now()}`,
+            senderId,
+            content,
+            timestamp: new Date().toISOString(),
+            read: false
+        };
+        
+        const existingMessages = conversationSnap.data().messages || [];
+        await updateDoc(conversationRef, {
+            messages: [...existingMessages, newMessage]
+        });
+
+        revalidatePath('/dashboard/messages');
+        revalidatePath('/client/messages');
+        return { success: true, newMessage };
+
+    } catch(error) {
+        console.error(error);
+        return { success: false, error: "Failed to send message" };
+    }
+}
+
+// --- Invoice Actions ---
+export async function getClientInvoices(clientId: string): Promise<Invoice[]> {
+    const invoicesCollection = collection(db, 'invoices');
+    const q = query(invoicesCollection, where('clientId', '==', clientId));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => convertTimestamps({ id: doc.id, ...doc.data() } as any));
+}
+
+export async function makePayment(invoiceId: string) {
+    try {
+        const invoiceRef = doc(db, "invoices", invoiceId);
+        const invoiceSnap = await getDoc(invoiceRef);
+        if(!invoiceSnap.exists()) {
+            return { success: false, error: "Facture non trouvée." };
+        }
+        
+        await updateDoc(invoiceRef, { status: 'Payée' });
+        const invoice = invoiceSnap.data();
+        
+        await addDoc(collection(db, "notifications"), {
+            userId: staticUserData.lawyer.id,
+            message: `Paiement de ${invoice.amount.toFixed(2)}€ reçu pour la facture ${invoice.number} (${invoice.caseNumber}).`,
+            read: false,
+            date: new Date().toISOString()
+        });
+
+        revalidatePath('/client/payments');
+        revalidatePath('/dashboard/layout');
+        return { success: true };
+
+    } catch (error) {
+        console.error(error);
+        return { success: false, error: "Le paiement a échoué." };
+    }
+}
+
+// --- Notification Actions ---
+export async function getNotifications(userId: string): Promise<Notification[]> {
+    const notifsCollection = collection(db, 'notifications');
+    const q = query(notifsCollection, where('userId', '==', userId), orderBy('date', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => convertTimestamps({ id: doc.id, ...doc.data() } as any));
+}
+
+export async function markNotificationAsRead(notificationId: string) {
+    const notifRef = doc(db, 'notifications', notificationId);
+    await updateDoc(notifRef, { read: true });
+    revalidatePath('/client/layout');
+    revalidatePath('/dashboard/layout');
+}
+
+export async function markAllNotificationsAsRead(userId: string) {
+    const notifsQuery = query(collection(db, 'notifications'), where('userId', '==', userId), where('read', '==', false));
+    const notifsSnapshot = await getDocs(notifsQuery);
+    const batch = writeBatch(db);
+    notifsSnapshot.docs.forEach(doc => {
+        batch.update(doc.ref, { read: true });
+    });
+    await batch.commit();
+    revalidatePath('/client/layout');
+    revalidatePath('/dashboard/layout');
+}
+
+
+// --- AI Actions (no change needed) ---
+
+export async function getSummary(input: SummarizeCaseDocumentsInput) {
+  try {
+    const result = await summarizeCaseDocuments(input);
+    return { success: true, summary: result.summary };
+  } catch (error) {
+    console.error(error);
+    return { success: false, error: 'La génération du résumé a échoué.' };
+  }
+}
 
 export async function getChatbotResponse(input: ChatbotInput) {
   try {
@@ -143,255 +506,5 @@ export async function getCaseCostEstimate(input: EstimateCaseCostInput): Promise
     } catch (error) {
         console.error(error);
         return { success: false, error: 'L\'estimation du coût a échoué.' };
-    }
-}
-
-export async function sendMessage(conversationId: string, content: string) {
-    try {
-        const conversation = conversations.find(c => c.id === conversationId);
-        if(!conversation) return { success: false, error: "Conversation not found" };
-
-        const newMessage: Message = {
-            id: `msg-${conversationId}-${conversation.messages.length + 1}`,
-            // In a real app, we'd get the sender from the session
-            senderId: user.lawyer.email,
-            content,
-            timestamp: new Date().toISOString(),
-            read: undefined
-        }
-        conversation.messages.push(newMessage);
-        revalidatePath('/dashboard/messages');
-        return { success: true, newMessage };
-
-    } catch(error) {
-        console.error(error);
-        return { success: false, error: "Failed to send message" };
-    }
-}
-
-
-export async function updateLawyerProfile(updatedLawyer: Lawyer) {
-    try {
-        user.lawyer = updatedLawyer;
-        revalidatePath('/dashboard/profile');
-        return { success: true }
-    } catch(error) {
-        console.error(error);
-        return { success: false, error: "Failed to update profile." };
-    }
-}
-
-export async function updateClientProfile(updatedClient: Client) {
-    try {
-        const clientIndex = user.clients.findIndex(c => c.id === updatedClient.id);
-        if (clientIndex > -1) {
-            user.clients[clientIndex] = updatedClient;
-            user.currentUser = updatedClient; // Update the "session" user
-            
-            // Also update the name in any associated cases
-            cases.forEach(c => {
-                if (c.clientId === updatedClient.id) {
-                    c.clientName = updatedClient.name;
-                }
-            });
-
-            revalidatePath('/client/profile');
-            revalidatePath('/client/layout'); // To update header
-            return { success: true };
-        }
-        return { success: false, error: "Client not found." };
-    } catch(error) {
-        console.error(error);
-        return { success: false, error: "Failed to update profile." };
-    }
-}
-
-export async function requestAppointment(appointmentData: { caseId: string, date: string, time: string, notes: string }) {
-    try {
-        const caseItem = cases.find(c => c.id === appointmentData.caseId);
-        if (!caseItem) return { success: false, error: "Affaire non trouvée" };
-
-        const newAppointment: Appointment = {
-            id: `apt-${Date.now()}`,
-            ...appointmentData,
-            status: 'En attente'
-        };
-
-        caseItem.appointments.push(newAppointment);
-        allAppointments.push({ ...newAppointment, clientName: caseItem.clientName });
-        
-        revalidatePath('/dashboard/calendar');
-        revalidatePath('/dashboard');
-        revalidatePath(`/client/cases/${caseItem.id}`);
-        return { success: true }
-    } catch(error) {
-        console.error(error);
-        return { success: false, error: "La demande de rendez-vous a échoué" };
-    }
-}
-
-export async function updateAppointmentStatus(appointmentId: string, status: Appointment['status']) {
-    try {
-        let updatedAppointment: (Appointment & {clientName?: string}) | undefined;
-        let caseToUpdate: Case | undefined;
-
-        // Find in global list
-        const globalAppointmentIndex = allAppointments.findIndex(a => a.id === appointmentId);
-        if(globalAppointmentIndex > -1) {
-            allAppointments[globalAppointmentIndex].status = status;
-            updatedAppointment = allAppointments[globalAppointmentIndex];
-        }
-
-        // Find in case-specific list
-        for (const caseItem of cases) {
-            const caseAppointmentIndex = caseItem.appointments.findIndex(a => a.id === appointmentId);
-            if (caseAppointmentIndex > -1) {
-                caseItem.appointments[caseAppointmentIndex].status = status;
-                caseToUpdate = caseItem;
-                break;
-            }
-        }
-
-        if (updatedAppointment && caseToUpdate) {
-            // Create a notification for the client
-            const client = user.clients.find(c => c.id === caseToUpdate?.clientId);
-            if (client) {
-                 notifications.push({
-                    id: `notif-${Date.now()}`,
-                    userId: client.id,
-                    message: `Votre rendez-vous du ${new Date(updatedAppointment.date).toLocaleDateString('fr-FR')} à ${updatedAppointment.time} a été ${status.toLowerCase()}.`,
-                    read: false,
-                    date: new Date().toISOString()
-                });
-            }
-
-            revalidatePath('/dashboard/calendar');
-            revalidatePath('/dashboard');
-            revalidatePath(`/client/cases/${caseToUpdate.id}`);
-            revalidatePath(`/client/layout`); // To update notification bell
-            return { success: true, updatedAppointment };
-        }
-
-        return { success: false, error: 'Rendez-vous non trouvé' };
-    } catch(error) {
-        console.error(error);
-        return { success: false, error: 'Impossible de mettre à jour le statut du rendez-vous' };
-    }
-}
-
-export async function rescheduleAppointment(appointmentData: { appointmentId: string, newDate: string, newTime: string }) {
-    try {
-        const { appointmentId, newDate, newTime } = appointmentData;
-        let updatedAppointment: Appointment | undefined;
-        let caseToUpdate: Case | undefined;
-
-        // Find and update in global list
-        const globalAppointmentIndex = allAppointments.findIndex(a => a.id === appointmentId);
-        if(globalAppointmentIndex > -1) {
-            allAppointments[globalAppointmentIndex].date = newDate;
-            allAppointments[globalAppointmentIndex].time = newTime;
-            allAppointments[globalAppointmentIndex].status = 'Reporté';
-            updatedAppointment = allAppointments[globalAppointmentIndex];
-        }
-
-        // Find and update in case-specific list
-        for (const caseItem of cases) {
-            const caseAppointmentIndex = caseItem.appointments.findIndex(a => a.id === appointmentId);
-            if (caseAppointmentIndex > -1) {
-                caseItem.appointments[caseAppointmentIndex].date = newDate;
-                caseItem.appointments[caseAppointmentIndex].time = newTime;
-                caseItem.appointments[caseAppointmentIndex].status = 'Reporté';
-                caseToUpdate = caseItem;
-                break;
-            }
-        }
-
-        if (updatedAppointment && caseToUpdate) {
-             const client = user.clients.find(c => c.id === caseToUpdate?.clientId);
-            if (client) {
-                 notifications.push({
-                    id: `notif-${Date.now()}`,
-                    userId: client.id,
-                    message: `Votre rendez-vous a été reporté au ${new Date(newDate).toLocaleDateString('fr-FR')} à ${newTime}.`,
-                    read: false,
-                    date: new Date().toISOString()
-                });
-            }
-            revalidatePath('/dashboard/calendar');
-            revalidatePath('/dashboard');
-            revalidatePath(`/client/cases/${caseToUpdate.id}`);
-            revalidatePath(`/client/layout`); // To update notification bell
-            return { success: true, updatedAppointment };
-        }
-        
-        return { success: false, error: "Rendez-vous non trouvé" };
-    } catch (e) {
-        console.error(e);
-        return { success: false, error: "La modification du rendez-vous a échoué" };
-    }
-}
-
-export async function makePayment(invoiceId: string) {
-    try {
-        const invoice = invoices.find(inv => inv.id === invoiceId);
-        if(!invoice) {
-            return { success: false, error: "Facture non trouvée." };
-        }
-        invoice.status = 'Payée';
-        
-        // Notify the lawyer
-        const lawyerId = user.lawyer.email; // In a real app this might be an ID.
-        notifications.push({
-            id: `notif-${Date.now()}`,
-            userId: lawyerId,
-            message: `Paiement de ${invoice.amount.toFixed(2)}€ reçu pour la facture ${invoice.number} (${invoice.caseNumber}).`,
-            read: false,
-            date: new Date().toISOString()
-        });
-
-        revalidatePath('/client/payments');
-        revalidatePath('/dashboard/layout'); // To update lawyer's notification bell
-        return { success: true };
-
-    } catch (error) {
-        console.error(error);
-        return { success: false, error: "Le paiement a échoué." };
-    }
-}
-
-export async function updateCaseStatus(caseId: string, newStatus: Case['status']) {
-    try {
-        const caseItemIndex = cases.findIndex(c => c.id === caseId);
-        if (caseItemIndex === -1) {
-            return { success: false, error: "Affaire non trouvée." };
-        }
-
-        const caseItem = cases[caseItemIndex];
-        caseItem.status = newStatus;
-        caseItem.lastUpdate = new Date().toISOString().split('T')[0];
-
-        // If the case is closed, notify the client.
-        if (newStatus === 'Clôturé') {
-            notifications.push({
-                id: `notif-${Date.now()}`,
-                userId: caseItem.clientId,
-                message: `Votre affaire ${caseItem.caseNumber} a été clôturée.`,
-                read: false,
-                date: new Date().toISOString()
-            });
-            // Revalidate client layout to update their notification bell
-            revalidatePath(`/client/layout`);
-        }
-        
-        // Revalidate paths to reflect the status change
-        revalidatePath('/dashboard/cases');
-        revalidatePath(`/dashboard/cases/${caseId}`);
-        revalidatePath(`/client/cases`);
-        revalidatePath(`/client/cases/${caseId}`);
-
-        return { success: true, updatedCase: caseItem };
-    } catch (error) {
-        console.error(error);
-        return { success: false, error: "La mise à jour du statut a échoué." };
     }
 }

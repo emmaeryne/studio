@@ -2,7 +2,7 @@
 "use client";
 
 import { notFound, useParams } from "next/navigation";
-import { cases, user, type Case } from "@/lib/data";
+import { getCaseById } from "@/lib/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,7 @@ import { ClientDocumentUploader } from "@/components/client-document-uploader";
 import { RequestAppointmentDialog } from "@/components/request-appointment-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useState, useEffect } from "react";
+import type { Case } from "@/lib/data";
 
 export default function ClientCaseDetailPage() {
   const params = useParams();
@@ -27,20 +28,23 @@ export default function ClientCaseDetailPage() {
   const [estimate, setEstimate] = useState<Case['_estimate'] | undefined>(undefined);
 
   useEffect(() => {
-    const clientUser = user.currentUser;
-    const foundCase = cases.find((c) => c.id === id && c.clientId === clientUser.id);
-    
-    if (foundCase) {
-        setCaseItem(foundCase);
-        // The estimate is temporarily stored on the case object after creation.
-        // We show it once, and then it can be "cleared" in a real app.
-        if (foundCase._estimate) {
-            setEstimate(foundCase._estimate);
-            // This is a mock data mutation. In a real app, this would be a database update.
-            delete foundCase._estimate;
-        }
-    } else {
-        setCaseItem(null);
+    if (id) {
+        const fetchCase = async () => {
+            const foundCase = await getCaseById(id);
+            if (foundCase) {
+                setCaseItem(foundCase);
+                // The estimate is temporarily stored on the case object after creation.
+                // We show it once, and then it can be "cleared" in a real app.
+                if (foundCase._estimate) {
+                    setEstimate(foundCase._estimate);
+                    // This is a mock data mutation. In a real app, this would be a database update.
+                    delete foundCase._estimate;
+                }
+            } else {
+                setCaseItem(null);
+            }
+        };
+        fetchCase();
     }
   }, [id]);
 
@@ -128,7 +132,7 @@ export default function ClientCaseDetailPage() {
             </CardHeader>
             <CardContent>
                <ul className="space-y-3 text-sm">
-                {caseItem.documents.length > 0 ? caseItem.documents.map((doc, i) => (
+                {caseItem.documents && caseItem.documents.length > 0 ? caseItem.documents.map((doc, i) => (
                   <li key={i} className="flex items-center justify-between p-2 rounded-md border">
                     <Link href={doc.url} className="text-primary hover:underline truncate pr-2 flex items-center gap-2">
                         <FileText className="h-4 w-4"/>
@@ -150,7 +154,7 @@ export default function ClientCaseDetailPage() {
             </CardHeader>
             <CardContent>
               <ul className="space-y-3 text-sm">
-                {caseItem.keyDeadlines.length > 0 ? caseItem.keyDeadlines.map((deadline, i) => (
+                {caseItem.keyDeadlines && caseItem.keyDeadlines.length > 0 ? caseItem.keyDeadlines.map((deadline, i) => (
                   <li key={i} className="flex items-start gap-3">
                      <Clock className="h-4 w-4 mt-0.5 text-muted-foreground" />
                     <div>
@@ -168,7 +172,7 @@ export default function ClientCaseDetailPage() {
             </CardHeader>
             <CardContent>
               <ul className="space-y-3 text-sm">
-                {caseItem.appointments.length > 0 ? caseItem.appointments.map((appointment, i) => (
+                {caseItem.appointments && caseItem.appointments.length > 0 ? caseItem.appointments.map((appointment, i) => (
                   <li key={i} className="flex items-start gap-3">
                      <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
                     <div>

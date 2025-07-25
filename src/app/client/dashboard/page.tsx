@@ -1,9 +1,9 @@
+
 import Link from "next/link"
 import {
   Activity,
   ArrowUpRight,
   Briefcase,
-  FileText,
   DollarSign,
   MessageSquare,
   Send
@@ -32,20 +32,25 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
-import { cases, user, conversations, invoices } from "@/lib/data"
+import { staticUserData } from "@/lib/data"
+import { getClientCases, getClientConversations, getClientInvoices, getAppointments } from "@/lib/actions"
 
-export default function ClientDashboard() {
-  const clientUser = user.currentUser;
-  const clientCases = cases.filter(c => c.clientId === clientUser.id);
-  const clientConversations = conversations.filter(c => 
-    cases.some(caseItem => caseItem.id === c.caseId && caseItem.clientId === clientUser.id)
-  );
-  const clientInvoices = invoices.filter(i => i.clientId === clientUser.id);
+export default async function ClientDashboard() {
+  const clientUser = staticUserData.currentUser;
+  const clientCases = await getClientCases(clientUser.id);
+  const clientConversations = await getClientConversations(clientUser.id);
+  const clientInvoices = await getClientInvoices(clientUser.id);
+  const allAppointments = await getAppointments();
+  
+  const clientAppointments = allAppointments.filter(app => {
+      const caseExists = clientCases.some(c => c.id === app.caseId);
+      return caseExists;
+  });
 
   const stats = {
     open: clientCases.filter(c => ['En cours', 'Nouveau', 'En attente du client'].includes(c.status)).length,
     closed: clientCases.filter(c => c.status === 'Clôturé').length,
-    unread: clientConversations.reduce((acc, conv) => acc + conv.unreadCount, 0),
+    unread: clientConversations.reduce((acc, conv) => acc + (conv.unreadCount || 0), 0),
     pendingInvoices: clientInvoices.filter(i => i.status === 'En attente').length,
   };
 
@@ -58,6 +63,8 @@ export default function ClientDashboard() {
       default: return 'outline';
     }
   };
+  
+  const lawyerUser = staticUserData.lawyer;
 
   const getLatestMessages = () => {
     return clientConversations
@@ -65,15 +72,20 @@ export default function ClientDashboard() {
         ...msg,
         conversationId: conv.id,
         caseNumber: conv.caseNumber,
-        senderName: msg.senderId === user.lawyer.email ? user.lawyer.name : clientUser.name,
-        senderAvatar: msg.senderId === user.lawyer.email ? user.lawyer.avatar : clientUser.avatar,
-        isFromLawyer: msg.senderId === user.lawyer.email
+        senderName: msg.senderId === lawyerUser.email ? lawyerUser.name : clientUser.name,
+        senderAvatar: msg.senderId === lawyerUser.email ? lawyerUser.avatar : clientUser.avatar,
+        isFromLawyer: msg.senderId === lawyerUser.email
       })))
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, 3);
   };
 
   const latestMessages = getLatestMessages();
+  
+  const nextAppointment = clientAppointments
+      .filter(a => a.status === 'Confirmé' && new Date(a.date) >= new Date())
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+
 
   return (
     <div className="flex flex-col gap-6">
@@ -112,14 +124,8 @@ export default function ClientDashboard() {
           {
             title: "Prochain RDV",
             icon: <Activity className="h-4 w-4 text-muted-foreground" />,
-            value: cases
-              .flatMap(c => c.appointments)
-              .filter(a => a.status === 'Confirmé')
-              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0]?.date || 'Aucun',
-            desc: cases
-              .flatMap(c => c.appointments)
-              .filter(a => a.status === 'Confirmé')
-              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0]?.notes || '',
+            value: nextAppointment ? new Date(nextAppointment.date).toLocaleDateString('fr-FR') : 'Aucun',
+            desc: nextAppointment?.notes || '',
           }
         ].map((item, idx) => (
           <Card key={idx}>

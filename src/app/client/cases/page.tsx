@@ -1,3 +1,4 @@
+
 import Link from "next/link";
 import {
   Card,
@@ -8,15 +9,16 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, FileText, ArrowUpRight } from "lucide-react";
-import { cases, user } from "@/lib/data";
+import { getClientCases } from "@/lib/actions";
+import { staticUserData } from "@/lib/data";
 import { Badge } from "@/components/ui/badge";
 import { AddClientCaseDialog } from "@/components/add-client-case-dialog";
 
-export default function ClientCasesPage() {
-  const clientUser = user.currentUser;
-  const clientCases = cases.filter(c => c.clientId === clientUser.id);
+export default async function ClientCasesPage() {
+  const clientUser = staticUserData.currentUser;
+  const clientCases = await getClientCases(clientUser.id);
 
-  const getStatusVariant = (status: string) => {
+  const getStatusVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
     switch (status) {
       case 'Nouveau': return 'destructive';
       case 'En cours': return 'default';
@@ -51,7 +53,7 @@ export default function ClientCasesPage() {
                     <p className="text-sm text-muted-foreground line-clamp-2">{caseItem.description}</p>
                     <div className="flex items-center text-sm text-muted-foreground">
                         <FileText className="h-4 w-4 mr-2"/>
-                        <span>{caseItem.documents.length} document(s)</span>
+                        <span>{caseItem.documents?.length || 0} document(s)</span>
                     </div>
                     <div className="flex justify-end">
                         <Button asChild variant="outline" size="sm">

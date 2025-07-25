@@ -1,17 +1,8 @@
+
 "use client";
 import Link from "next/link";
-import { cases as initialCases } from "@/lib/data";
-
-// Define the Case type based on your data structure
-type Case = {
-  id: string;
-  caseNumber: string;
-  clientName: string;
-  caseType: string;
-  status: string;
-  submittedDate: string;
-  lastUpdate: string;
-};
+import { getCases } from "@/lib/actions";
+import type { Case } from "@/lib/data";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -33,7 +24,6 @@ import {
   PlusCircle,
   ArrowUpRight,
   Search,
-  Filter,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -46,11 +36,12 @@ import {
   SelectValue,
   SelectItem,
 } from "@/components/ui/select";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function CasesPage() {
-  const [cases, setCases] = useState<Case[]>(initialCases);
+  const [cases, setCases] = useState<Case[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -59,8 +50,17 @@ export default function CasesPage() {
   const casesPerPage = 10;
   const { toast } = useToast();
 
+  useEffect(() => {
+    const loadCases = async () => {
+        setIsLoading(true);
+        const fetchedCases = await getCases();
+        setCases(fetchedCases);
+        setIsLoading(false);
+    }
+    loadCases();
+  }, []);
+
   const handleCaseAdded = (newCase: Case) => {
-    // This function will be passed to the dialog to update the state
     setCases(prevCases => [newCase, ...prevCases]);
   };
 
@@ -82,7 +82,6 @@ export default function CasesPage() {
           ? new Date(a[sortField]).getTime() - new Date(b[sortField]).getTime()
           : new Date(b[sortField]).getTime() - new Date(a[sortField]).getTime();
       }
-      // Only string fields are sorted here
       const aValue = a[sortField] as string;
       const bValue = b[sortField] as string;
       return isAsc
@@ -198,7 +197,11 @@ export default function CasesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedCases.length === 0 ? (
+                {isLoading ? (
+                    <TableRow>
+                        <TableCell colSpan={6} className="text-center h-24">Chargement des affaires...</TableCell>
+                    </TableRow>
+                ) : paginatedCases.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center text-muted-foreground">
                       Aucune affaire trouvée.
