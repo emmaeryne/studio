@@ -20,39 +20,42 @@ export async function getSummary(input: SummarizeCaseDocumentsInput) {
   }
 }
 
-export async function addCase(newCase: { clientName: string; caseType: Case['caseType']; description: string }) {
+export async function addCase(newCaseData: { clientName: string; caseType: Case['caseType']; description: string }) {
     try {
         const nextId = (Math.max(0, ...cases.map(c => parseInt(c.id))) + 1).toString();
         const nextCaseNumber = `CASE-${String(cases.length + 1).padStart(3, '0')}`;
         const currentDate = new Date().toISOString().split('T')[0];
 
         // This is a mock association. In a real app, you'd link to a real client ID.
-        const client = user.clients.find(c => c.name === newCase.clientName) || {
-            id: `client-${newCase.clientName.toLowerCase().replace(/\s/g, '-')}`,
-            name: newCase.clientName,
-            email: `${newCase.clientName.toLowerCase().replace(/\s/g, '.')}@email.com`,
-            avatar: `https://placehold.co/100x100.png?text=${newCase.clientName.charAt(0)}`
+        const client = user.clients.find(c => c.name === newCaseData.clientName) || {
+            id: `client-${newCaseData.clientName.toLowerCase().replace(/\s/g, '-')}`,
+            name: newCaseData.clientName,
+            email: `${newCaseData.clientName.toLowerCase().replace(/\s/g, '.')}@email.com`,
+            avatar: `https://placehold.co/100x100.png?text=${newCaseData.clientName.charAt(0)}`
         };
 
 
-        cases.push({
+        const newCase: Case = {
             id: nextId,
             caseNumber: nextCaseNumber,
-            clientName: newCase.clientName,
+            clientName: newCaseData.clientName,
             clientId: client.id,
             clientAvatar: client.avatar,
-            caseType: newCase.caseType,
+            caseType: newCaseData.caseType,
             status: 'Nouveau',
             submittedDate: currentDate,
             lastUpdate: currentDate,
-            description: newCase.description,
+            description: newCaseData.description,
             documents: [],
             appointments: [],
             keyDeadlines: [],
-        });
+        };
+        
+        cases.unshift(newCase);
+
         revalidatePath('/dashboard/cases');
         revalidatePath('/client/cases');
-        return { success: true };
+        return { success: true, newCase };
     } catch (error) {
         console.error(error);
         return { success: false, error: 'Failed to add case.' };

@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { cases } from "@/lib/data";
+import { cases as initialCases } from "@/lib/data";
 
 // Define the Case type based on your data structure
 type Case = {
@@ -50,6 +50,7 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function CasesPage() {
+  const [cases, setCases] = useState<Case[]>(initialCases);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -57,6 +58,11 @@ export default function CasesPage() {
   const [sortOrder, setSortOrder] = useState("desc");
   const casesPerPage = 10;
   const { toast } = useToast();
+
+  const handleCaseAdded = (newCase: Case) => {
+    // This function will be passed to the dialog to update the state
+    setCases(prevCases => [newCase, ...prevCases]);
+  };
 
   // Filter cases by search term and status
   const filteredCases = cases
@@ -123,7 +129,7 @@ export default function CasesPage() {
           <h1 className="text-2xl md:text-3xl font-headline font-bold">
             Gestion des Affaires
           </h1>
-          <AddCaseDialog>
+          <AddCaseDialog onCaseAdded={handleCaseAdded}>
             <Button className="bg-primary hover:bg-primary/90">
               <PlusCircle className="mr-2 h-4 w-4" />
               Nouvelle Affaire

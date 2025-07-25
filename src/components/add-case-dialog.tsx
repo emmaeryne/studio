@@ -18,8 +18,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { useToast } from '@/hooks/use-toast';
 import { addCase } from '@/lib/actions';
 import { useRouter } from 'next/navigation';
+import type { Case } from '@/lib/data';
 
-export function AddCaseDialog({ children }: { children: React.ReactNode }) {
+export function AddCaseDialog({ children, onCaseAdded }: { children: React.ReactNode, onCaseAdded: (newCase: Case) => void }) {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
@@ -27,13 +28,13 @@ export function AddCaseDialog({ children }: { children: React.ReactNode }) {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    const newCase = {
+    const newCaseData = {
       clientName: formData.get('clientName') as string,
       caseType: formData.get('caseType') as 'Litige civil' | 'Droit pénal' | 'Droit de la famille' | 'Droit des sociétés',
       description: formData.get('description') as string,
     };
 
-    if (!newCase.clientName || !newCase.caseType || !newCase.description) {
+    if (!newCaseData.clientName || !newCaseData.caseType || !newCaseData.description) {
         toast({
             variant: 'destructive',
             title: 'Champs requis',
@@ -43,18 +44,23 @@ export function AddCaseDialog({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      await addCase(newCase);
-      toast({
-        title: 'Affaire ajoutée',
-        description: `L'affaire pour ${newCase.clientName} a été créée avec succès.`,
-      });
-      setOpen(false);
-      router.refresh(); // Refresh the page to show the new case
+      const result = await addCase(newCaseData);
+      if (result.success && result.newCase) {
+        toast({
+          title: 'Affaire ajoutée',
+          description: `L'affaire pour ${newCaseData.clientName} a été créée avec succès.`,
+        });
+        onCaseAdded(result.newCase);
+        setOpen(false);
+        router.refresh(); // Refresh the page to show the new case
+      } else {
+        throw new Error(result.error || "Failed to add case");
+      }
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Erreur',
-        description: "Impossible d'ajouter la nouvelle affaire.",
+        description: (error as Error).message || "Impossible d'ajouter la nouvelle affaire.",
       });
     }
   };
