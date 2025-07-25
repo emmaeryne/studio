@@ -25,6 +25,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
+import { appointments as initialAppointments, cases } from "@/lib/data";
+
 
 // Type definitions for better type safety
 interface Appointment {
@@ -41,8 +43,6 @@ interface EventsByDate {
   [key: string]: Appointment[];
 }
 
-// You can replace this with real data fetching logic
-const initialAppointments: Appointment[] = [];
 
 export default function CalendarPage() {
   const [date, setDate] = useState<Date | undefined>(new Date());
@@ -53,10 +53,11 @@ export default function CalendarPage() {
 
   // Memoize filtered appointments to optimize performance
   const selectedDayAppointments = useMemo(() => {
+    if (!date) return [];
     return appointments
       .filter(
         (appointment) =>
-          new Date(appointment.date).toDateString() === date?.toDateString() &&
+          new Date(appointment.date).toDateString() === date.toDateString() &&
           (statusFilter === "all" || appointment.status === statusFilter)
       )
       .sort((a, b) => a.time.localeCompare(b.time));
@@ -84,7 +85,7 @@ export default function CalendarPage() {
           title: "Statut mis à jour",
           description: `Le rendez-vous a été ${status.toLowerCase()}.`,
         });
-        router.refresh();
+        router.refresh(); // This re-fetches server data and re-renders
       } else {
         throw new Error(res.error);
       }

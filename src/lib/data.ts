@@ -136,7 +136,7 @@ export const cases: Case[] = [
     lastUpdate: '2024-05-10',
     description: 'Litige avec un voisin concernant une délimitation de propriété. Le client a reçu une mise en demeure.',
     documents: [{ name: 'Mise en demeure.pdf', url: '#' }, { name: 'Plan cadastral.png', url: '#', "data-ai-hint": 'map blueprint' }],
-    appointments: [],
+    appointments: [{ id: 'apt-3', date: '2024-07-12', time: '11:00', notes: 'Discuter de la réponse', status: 'En attente' }],
     keyDeadlines: [{ date: '2024-06-15', description: 'Réponse à la mise en demeure' }],
   },
   {

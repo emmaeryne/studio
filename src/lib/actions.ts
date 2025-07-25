@@ -222,6 +222,7 @@ export async function requestAppointment(appointmentData: { caseId: string, date
 export async function updateAppointmentStatus(appointmentId: string, status: 'Confirmé' | 'Annulé') {
     try {
         let appointmentToUpdate: (Appointment & {clientName?: string}) | undefined;
+        let caseToUpdate: Case | undefined;
 
         // Find in global list
         const globalAppointment = allAppointments.find(a => a.id === appointmentId);
@@ -235,12 +236,27 @@ export async function updateAppointmentStatus(appointmentId: string, status: 'Co
             const caseAppointment = caseItem.appointments.find(a => a.id === appointmentId);
             if (caseAppointment) {
                 caseAppointment.status = status;
+                caseToUpdate = caseItem;
                 break;
             }
         }
 
-        if (appointmentToUpdate) {
+        if (appointmentToUpdate && caseToUpdate) {
+            // Create a notification for the client
+            const client = user.clients.find(c => c.id === caseToUpdate?.clientId);
+            if (client) {
+                 notifications.push({
+                    id: `notif-${Date.now()}`,
+                    userId: client.id,
+                    message: `Votre rendez-vous du ${new Date(appointmentToUpdate.date).toLocaleDateString()} à ${appointmentToUpdate.time} a été ${status.toLowerCase()}.`,
+                    read: false,
+                    date: new Date().toISOString()
+                });
+            }
+
             revalidatePath('/dashboard/calendar');
+            revalidatePath(`/client/cases/${caseToUpdate.id}`);
+            revalidatePath(`/client/layout`); // To update notification bell
             return { success: true };
         }
 
