@@ -23,23 +23,28 @@ export async function getSummary(input: SummarizeCaseDocumentsInput) {
 
 export async function addCase(newCaseData: { clientName: string; caseType: Case['caseType']; description: string }) {
     try {
-        const nextId = (Math.max(0, ...cases.map(c => parseInt(c.id))) + 1).toString();
+        const nextId = (Math.max(0, ...cases.map(c => parseInt(c.id, 10))) + 1).toString();
         const nextCaseNumber = `CASE-${String(cases.length + 1).padStart(3, '0')}`;
         const currentDate = new Date().toISOString().split('T')[0];
 
-        // This is a mock association. In a real app, you'd link to a real client ID.
-        const client = user.clients.find(c => c.name === newCaseData.clientName) || {
-            id: `client-${newCaseData.clientName.toLowerCase().replace(/\s/g, '-')}`,
-            name: newCaseData.clientName,
-            email: `${newCaseData.clientName.toLowerCase().replace(/\s/g, '.')}@email.com`,
-            avatar: `https://placehold.co/100x100.png?text=${newCaseData.clientName.charAt(0)}`
-        };
-
+        // Find existing client or create a new one
+        let client = user.clients.find(c => c.name.toLowerCase() === newCaseData.clientName.toLowerCase());
+        
+        if (!client) {
+            const newClientId = `client-${newCaseData.clientName.toLowerCase().replace(/\s/g, '-')}-${Date.now()}`;
+            client = {
+                id: newClientId,
+                name: newCaseData.clientName,
+                email: `${newCaseData.clientName.toLowerCase().replace(/\s/g, '.')}@email.com`,
+                avatar: `https://placehold.co/100x100.png?text=${newCaseData.clientName.charAt(0)}`
+            };
+            user.clients.push(client); // Add the new client to the list
+        }
 
         const newCase: Case = {
             id: nextId,
             caseNumber: nextCaseNumber,
-            clientName: newCaseData.clientName,
+            clientName: client.name,
             clientId: client.id,
             clientAvatar: client.avatar,
             caseType: newCaseData.caseType,
@@ -55,7 +60,6 @@ export async function addCase(newCaseData: { clientName: string; caseType: Case[
         cases.unshift(newCase);
 
         revalidatePath('/dashboard/cases');
-        revalidatePath('/client/cases');
         return { success: true, newCase };
     } catch (error) {
         console.error(error);

@@ -83,11 +83,11 @@ export default function CasesPage() {
           : new Date(b[sortField]).getTime() - new Date(a[sortField]).getTime();
       }
       // Only string fields are sorted here
-      const aValue = a[sortField];
-      const bValue = b[sortField];
+      const aValue = a[sortField] as string;
+      const bValue = b[sortField] as string;
       return isAsc
-        ? String(aValue).localeCompare(String(bValue))
-        : String(bValue).localeCompare(String(aValue));
+        ? aValue.localeCompare(bValue)
+        : bValue.localeCompare(aValue);
     });
 
   // Pagination
@@ -179,17 +179,17 @@ export default function CasesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort("caseNumber" as keyof Case)}>
+                  <TableHead className="cursor-pointer" onClick={() => handleSort("caseNumber")}>
                     Numéro d'affaire {sortField === "caseNumber" && (sortOrder === "asc" ? "↑" : "↓")}
                   </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort("clientName" as keyof Case)}>
+                  <TableHead className="cursor-pointer" onClick={() => handleSort("clientName")}>
                     Client {sortField === "clientName" && (sortOrder === "asc" ? "↑" : "↓")}
                   </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort("caseType" as keyof Case)}>
+                  <TableHead className="cursor-pointer" onClick={() => handleSort("caseType")}>
                     Type {sortField === "caseType" && (sortOrder === "asc" ? "↑" : "↓")}
                   </TableHead>
                   <TableHead>Statut</TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort("lastUpdate" as keyof Case)}>
+                  <TableHead className="cursor-pointer" onClick={() => handleSort("lastUpdate")}>
                     Dernière mise à jour {sortField === "lastUpdate" && (sortOrder === "asc" ? "↑" : "↓")}
                   </TableHead>
                   <TableHead className="text-right">
