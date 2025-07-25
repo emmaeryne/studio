@@ -124,9 +124,9 @@ export default function CaseDetailPage({ params: { id } }: { params: { id: strin
                 <div className="font-semibold">Type d'affaire:</div>
                 <div>{caseItem.caseType}</div>
                 <div className="font-semibold">Date de soumission:</div>
-                <div>{new Date(caseItem.submittedDate).toLocaleDateString()}</div>
+                <div>{new Date(caseItem.submittedDate).toLocaleDateString('fr-FR')}</div>
                 <div className="font-semibold">Dernière mise à jour:</div>
-                <div>{new Date(caseItem.lastUpdate).toLocaleDateString()}</div>
+                <div>{new Date(caseItem.lastUpdate).toLocaleDateString('fr-FR')}</div>
               </dl>
               <Separator className="my-4"/>
               <div>

@@ -193,7 +193,7 @@ export default function DashboardPage() {
                         {caseItem.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">{new Date(caseItem.submittedDate).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-right">{new Date(caseItem.submittedDate).toLocaleDateString('fr-FR')}</TableCell>
                     <TableCell className="text-right">
                       <Link href={`/dashboard/cases/${caseItem.id}`}>
                         <Button variant="outline" size="sm">
@@ -226,7 +226,7 @@ export default function DashboardPage() {
                 <div className="flex-1">
                   <p className="text-sm font-medium leading-none">{appointment.clientName}</p>
                   <p className="text-sm text-muted-foreground">{appointment.notes}</p>
-                  <div className="text-xs text-muted-foreground">{new Date(appointment.date).toLocaleDateString()} - {appointment.time}</div>
+                  <div className="text-xs text-muted-foreground">{new Date(appointment.date).toLocaleDateString('fr-FR')} - {appointment.time}</div>
                 </div>
                 <div className="text-right flex flex-col items-end gap-1">
                     {appointment.status === 'En attente' ? (

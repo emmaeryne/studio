@@ -96,7 +96,7 @@ export default function ClientPaymentsPage() {
                 <TableRow key={invoice.id}>
                   <TableCell className="font-medium">{invoice.number}</TableCell>
                   <TableCell>{invoice.caseNumber}</TableCell>
-                  <TableCell>{new Date(invoice.date).toLocaleDateString()}</TableCell>
+                  <TableCell>{new Date(invoice.date).toLocaleDateString('fr-FR')}</TableCell>
                   <TableCell>{invoice.amount.toFixed(2)}€</TableCell>
                   <TableCell>
                     <Badge variant={getStatusVariant(invoice.status)}>{invoice.status}</Badge>

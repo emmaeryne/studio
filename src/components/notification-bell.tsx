@@ -75,7 +75,7 @@ export function NotificationBell({
                 <div className="flex-1">
                   <p className="text-sm">{notification.message}</p>
                   <p className="text-xs text-muted-foreground">
-                    {new Date(notification.date).toLocaleDateString()}
+                    {new Date(notification.date).toLocaleDateString('fr-FR')}
                   </p>
                 </div>
                 {!notification.read && (

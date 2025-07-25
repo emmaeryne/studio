@@ -172,7 +172,7 @@ export default function ClientDashboard() {
                       <div className="flex items-center justify-between">
                         <h4 className="font-medium">{message.senderName}</h4>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(message.timestamp).toLocaleDateString()}
+                          {new Date(message.timestamp).toLocaleDateString('fr-FR')}
                         </span>
                       </div>
                       <p className="text-sm mt-1 line-clamp-2">{message.content}</p>
@@ -252,7 +252,7 @@ export default function ClientDashboard() {
                         {caseItem.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>{new Date(caseItem.lastUpdate).toLocaleDateString()}</TableCell>
+                    <TableCell>{new Date(caseItem.lastUpdate).toLocaleDateString('fr-FR')}</TableCell>
                     <TableCell className="text-right">
                       <Link href={`/client/cases/${caseItem.id}`}>
                         <Button variant="outline" size="sm">
