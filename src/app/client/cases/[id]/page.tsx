@@ -15,9 +15,9 @@ import { ClientDocumentUploader } from "@/components/client-document-uploader";
 import { RequestAppointmentDialog } from "@/components/request-appointment-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-export default function ClientCaseDetailPage({ params }: { params: { id: string } }) {
+export default function ClientCaseDetailPage({ params: { id } }: { params: { id: string } }) {
   const clientUser = user.currentUser;
-  const caseItem = cases.find((c) => c.id === params.id && c.clientId === clientUser.id);
+  const caseItem = cases.find((c) => c.id === id && c.clientId === clientUser.id);
 
   if (!caseItem) {
     notFound();

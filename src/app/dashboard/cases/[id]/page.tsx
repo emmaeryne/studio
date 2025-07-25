@@ -27,8 +27,8 @@ import { useToast } from "@/hooks/use-toast";
 import type { Case } from "@/lib/data";
 import { useState } from "react";
 
-export default function CaseDetailPage({ params }: { params: { id: string } }) {
-  const initialCase = cases.find((c) => c.id === params.id);
+export default function CaseDetailPage({ params: { id } }: { params: { id: string } }) {
+  const initialCase = cases.find((c) => c.id === id);
   const { toast } = useToast();
   
   // Use state to manage the case item for real-time updates on the page
