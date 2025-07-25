@@ -120,7 +120,8 @@ export async function addClientCase(newCase: { caseType: Case['caseType']; descr
     try {
         caseEstimate = await estimateCaseCost(newCase);
     } catch(e) {
-        console.error("Failed to get estimate", e);
+        console.error("AI cost estimation failed, proceeding without it.", e);
+        // Continue without the estimate if the AI call fails
     }
     
     const casesCountSnapshot = await getDocs(collection(db, 'cases'));
@@ -177,7 +178,8 @@ export async function updateCaseStatus(caseId: string, newStatus: Case['status']
         revalidatePath('/client/cases');
         revalidatePath(`/client/cases/${caseId}`);
 
-        return { success: true, updatedCase: {id: caseId, ...caseItem.data()} as Case };
+        const updatedCaseData = await getCaseById(caseId);
+        return { success: true, updatedCase: updatedCaseData };
     } catch (error) {
         console.error(error);
         return { success: false, error: "La mise à jour du statut a échoué." };
