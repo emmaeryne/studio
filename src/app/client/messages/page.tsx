@@ -6,25 +6,34 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { sendMessage } from "@/lib/actions";
+import { sendMessage, getClientConversations } from "@/lib/actions";
 import { MessageList } from "@/components/MessageList";
 import { MessageView } from "@/components/MessageView";
-import { user, conversations as initialConversations, cases } from "@/lib/data";
+import { staticUserData, type Conversation } from "@/lib/data";
 import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
 import { AvatarImage } from "@/components/ui/avatar";
 
 export default function ClientMessagesPage() {
-  const clientUser = user.currentUser;
-  const clientConversations = initialConversations.filter(c => 
-    cases.some(caseItem => caseItem.id === c.caseId && caseItem.clientId === clientUser.id)
-  );
-
-  const [conversations, setConversations] = useState(clientConversations);
-  const [selectedConversationId, setSelectedConversationId] = useState(clientConversations[0]?.id);
+  const clientUser = staticUserData.currentUser;
+  
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | undefined>();
   const [newMessage, setNewMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchConversations = async () => {
+        const clientConversations = await getClientConversations(clientUser.id);
+        setConversations(clientConversations);
+        if (clientConversations.length > 0) {
+            setSelectedConversationId(clientConversations[0].id);
+        }
+    };
+    fetchConversations();
+  }, [clientUser.id]);
+
 
   const selectedConversation = conversations.find(c => c.id === selectedConversationId);
 
@@ -33,28 +42,25 @@ export default function ClientMessagesPage() {
     if (!newMessage.trim() || !selectedConversationId) return;
 
     try {
-      const newMsg = {
-        id: `msg-${Date.now()}`,
-        senderId: user.currentUser.id,
-        content: newMessage,
-        timestamp: new Date().toISOString(),
-        read: false
-      };
-
-      setConversations(prev => 
-        prev.map(c => 
-          c.id === selectedConversationId 
-            ? { 
-                ...c, 
-                messages: [...c.messages, newMsg],
-                unreadCount: 0 
-              } 
-            : c
-        )
-      );
+      const sentMessage = await sendMessage(selectedConversationId, newMessage, clientUser.id);
       
-      setNewMessage("");
-      toast({ title: "Message envoyé", description: "Votre message a été envoyé." });
+      if (sentMessage.success && sentMessage.newMessage) {
+        setConversations(prev => 
+            prev.map(c => 
+              c.id === selectedConversationId 
+                ? { 
+                    ...c, 
+                    messages: [...c.messages, sentMessage.newMessage!],
+                    unreadCount: 0 
+                  } 
+                : c
+            )
+          );
+          setNewMessage("");
+          toast({ title: "Message envoyé", description: "Votre message a été envoyé." });
+      } else {
+        throw new Error(sentMessage.error);
+      }
     } catch (error) {
       toast({
         variant: "destructive",
@@ -109,7 +115,7 @@ export default function ClientMessagesPage() {
               conversations={conversations}
               selectedConversationId={selectedConversationId}
               onSelectConversation={setSelectedConversationId}
-              currentUserId={user.currentUser.id}
+              currentUserId={clientUser.id}
               searchQuery={searchQuery}
             />
           </ScrollArea>
@@ -120,12 +126,12 @@ export default function ClientMessagesPage() {
             <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={user.lawyer.avatar} alt={user.lawyer.name} />
-                  <AvatarFallback>{user.lawyer.name.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={staticUserData.lawyer.avatar} alt={staticUserData.lawyer.name} />
+                  <AvatarFallback>{staticUserData.lawyer.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
                   <CardTitle className="font-headline text-lg">
-                    {user.lawyer.name}
+                    {staticUserData.lawyer.name}
                   </CardTitle>
                   <p className="text-sm text-muted-foreground">
                     Affaire: {selectedConversation.caseNumber}
@@ -136,9 +142,9 @@ export default function ClientMessagesPage() {
             <ScrollArea className="flex-1" ref={scrollAreaRef}>
               <MessageView
                 conversation={selectedConversation}
-                currentUserId={user.currentUser.id}
-                lawyerName={user.lawyer.name}
-                lawyerAvatar={user.lawyer.avatar}
+                currentUserId={clientUser.id}
+                lawyerName={staticUserData.lawyer.name}
+                lawyerAvatar={staticUserData.lawyer.avatar}
                 newMessage={newMessage}
                 onNewMessageChange={setNewMessage}
                 onSendMessage={handleSendMessage}

@@ -9,7 +9,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import {
   SidebarProvider,
   Sidebar,
@@ -19,20 +18,21 @@ import {
   SidebarTrigger,
   SidebarInset,
 } from "@/components/ui/sidebar";
-import { user, notifications } from "@/lib/data";
+import { staticUserData } from "@/lib/data";
+import { getNotifications } from "@/lib/actions";
 import { DashboardNav } from "@/components/dashboard-nav";
-import { Briefcase, Search } from "lucide-react";
+import { Briefcase } from "lucide-react";
 import { Chatbot } from "@/components/chatbot";
 import { NotificationBell } from "@/components/notification-bell";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
 
-  const lawyerUser = user.lawyer;
-  const lawyerNotifications = notifications.filter(n => n.userId === lawyerUser.email);
+  const lawyerUser = staticUserData.lawyer;
+  const lawyerNotifications = await getNotifications(lawyerUser.id);
 
 
   return (
@@ -60,25 +60,15 @@ export default function DashboardLayout({
               <SidebarTrigger className="md:hidden" />
               <div className="w-full flex-1">
                 {/* Search can be implemented later */}
-                {/* <form>
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="search"
-                      placeholder="Rechercher des affaires..."
-                      className="w-full appearance-none bg-background pl-8 shadow-none md:w-2/3 lg:w-1/3"
-                    />
-                  </div>
-                </form> */}
               </div>
               <Chatbot />
-              <NotificationBell userId={lawyerUser.email} notifications={lawyerNotifications} />
+              <NotificationBell userId={lawyerUser.id} notifications={lawyerNotifications} />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="secondary" size="icon" className="rounded-full">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.lawyer.avatar} alt={user.lawyer.name} />
-                      <AvatarFallback>{user.lawyer.name.charAt(0)}</AvatarFallback>
+                      <AvatarImage src={lawyerUser.avatar} alt={lawyerUser.name} />
+                      <AvatarFallback>{lawyerUser.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <span className="sr-only">Toggle user menu</span>
                   </Button>
@@ -86,7 +76,9 @@ export default function DashboardLayout({
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Mon Compte</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>Paramètres</DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard/profile">Paramètres</Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem>Support</DropdownMenuItem>
                   <DropdownMenuSeparator />
                    <DropdownMenuItem asChild>

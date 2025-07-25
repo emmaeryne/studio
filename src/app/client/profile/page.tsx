@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Avatar,
@@ -18,21 +18,30 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { updateClientProfile } from "@/lib/actions";
-import { user as initialUser } from "@/lib/data";
+import { updateClientProfile, getClientProfile } from "@/lib/actions";
+import { staticUserData, Client } from "@/lib/data";
 import { Mail, Phone, Home, Upload } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 export default function ClientProfilePage() {
-  const [client, setClient] = useState(initialUser.currentUser);
+  const [client, setClient] = useState<Client | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [errors, setErrors] = useState<{ name?: string; email?: string }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const router = useRouter();
+  
+  useEffect(() => {
+    const fetchClient = async () => {
+        const profile = await getClientProfile(staticUserData.currentUser.id);
+        setClient(profile);
+    }
+    fetchClient();
+  }, [])
 
   const validateForm = () => {
+    if (!client) return false;
     const newErrors: typeof errors = {};
     if (!client.name.trim()) newErrors.name = "Nom requis.";
     if (!client.email.trim()) newErrors.email = "Email requis.";
@@ -42,7 +51,7 @@ export default function ClientProfilePage() {
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !client) return;
 
     if (!file.type.startsWith("image/")) {
       toast({
@@ -73,7 +82,7 @@ export default function ClientProfilePage() {
   };
 
   const handleSave = async () => {
-    if (!validateForm()) {
+    if (!client || !validateForm()) {
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -98,6 +107,10 @@ export default function ClientProfilePage() {
       });
     }
   };
+
+  if (!client) {
+    return <div>Chargement...</div>;
+  }
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -225,7 +238,7 @@ export default function ClientProfilePage() {
             <div className="flex justify-end gap-4 pt-4">
               <Button
                 variant="outline"
-                onClick={() => setClient(initialUser.currentUser)}
+                onClick={() => setClient(staticUserData.currentUser)}
               >
                 Annuler
               </Button>

@@ -1,7 +1,7 @@
 // A page for clients to view and pay their invoices.
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -19,20 +19,26 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { invoices as initialInvoices, user, type Invoice } from "@/lib/data";
+import { staticUserData, type Invoice } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { CreditCard, CheckCircle } from "lucide-react";
 import { PaymentDialog } from "@/components/payment-dialog";
-import { makePayment } from "@/lib/actions";
+import { makePayment, getClientInvoices } from "@/lib/actions";
 
 export default function ClientPaymentsPage() {
-  const [invoices, setInvoices] = useState(initialInvoices.filter(inv => inv.clientId === user.currentUser.id));
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const { toast } = useToast();
 
+  useEffect(() => {
+    const fetchInvoices = async () => {
+        const clientInvoices = await getClientInvoices(staticUserData.currentUser.id);
+        setInvoices(clientInvoices);
+    };
+    fetchInvoices();
+  }, []);
+
   const handlePaymentSuccess = async (invoiceId: string) => {
-    // In a real application, this would integrate with a payment provider.
-    // For now, we'll just simulate the payment.
     const res = await makePayment(invoiceId);
     if (res.success) {
         setInvoices(

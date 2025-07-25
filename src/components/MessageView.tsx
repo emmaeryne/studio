@@ -1,18 +1,17 @@
 "use client";
 
-import { Conversation, Message } from "@/lib/data";
+import { Conversation } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SendHorizonal } from "lucide-react";
+import { staticUserData } from "@/lib/data";
 
 interface MessageViewProps {
   conversation: Conversation;
   currentUserId: string;
-  lawyerName: string;
-  lawyerAvatar: string;
   newMessage: string;
   onNewMessageChange: (value: string) => void;
   onSendMessage: (e: React.FormEvent) => void;
@@ -21,12 +20,13 @@ interface MessageViewProps {
 export function MessageView({
   conversation,
   currentUserId,
-  lawyerName,
-  lawyerAvatar,
   newMessage,
   onNewMessageChange,
   onSendMessage
 }: MessageViewProps) {
+  const lawyer = staticUserData.lawyer;
+  const isUserLawyer = currentUserId === lawyer.id;
+  
   return (
     <>
       <div className="p-4 space-y-4">
@@ -45,12 +45,12 @@ export function MessageView({
               {message.senderId !== currentUserId && (
                 <Avatar className="h-8 w-8">
                   <AvatarImage
-                    src={message.senderId === "lawyer" ? lawyerAvatar : conversation.clientAvatar}
-                    alt={message.senderId === "lawyer" ? lawyerName : conversation.clientName}
+                    src={message.senderId === lawyer.id ? lawyer.avatar : conversation.clientAvatar}
+                    alt={message.senderId === lawyer.id ? lawyer.name : conversation.clientName}
                   />
                   <AvatarFallback>
-                    {message.senderId === "lawyer" 
-                      ? lawyerName.charAt(0) 
+                    {message.senderId === lawyer.id 
+                      ? lawyer.name.charAt(0) 
                       : conversation.clientName.charAt(0)}
                   </AvatarFallback>
                 </Avatar>
@@ -79,12 +79,12 @@ export function MessageView({
               {message.senderId === currentUserId && (
                 <Avatar className="h-8 w-8">
                   <AvatarImage 
-                    src={message.senderId === "lawyer" ? lawyerAvatar : conversation.clientAvatar} 
-                    alt={message.senderId === "lawyer" ? lawyerName : conversation.clientName}
+                    src={isUserLawyer ? lawyer.avatar : conversation.clientAvatar} 
+                    alt={isUserLawyer ? lawyer.name : conversation.clientName}
                   />
                   <AvatarFallback>
-                    {message.senderId === "lawyer" 
-                      ? lawyerName.charAt(0) 
+                    {isUserLawyer 
+                      ? lawyer.name.charAt(0) 
                       : conversation.clientName.charAt(0)}
                   </AvatarFallback>
                 </Avatar>

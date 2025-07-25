@@ -6,51 +6,57 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { sendMessage } from "@/lib/actions";
+import { sendMessage, getConversations } from "@/lib/actions";
 import { MessageList } from "@/components/MessageList";
 import { MessageView } from "@/components/MessageView";
-import { user, conversations as initialConversations } from "@/lib/data";
+import { staticUserData, Conversation } from "@/lib/data";
 import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
 import { AvatarImage } from "@/components/ui/avatar";
 
 export default function LawyerMessagesPage() {
-  const [conversations, setConversations] = useState(initialConversations);
-  const [selectedConversationId, setSelectedConversationId] = useState(conversations[0].id);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | undefined>();
   const [newMessage, setNewMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const fetchConversations = async () => {
+        const allConversations = await getConversations();
+        setConversations(allConversations);
+        if (allConversations.length > 0) {
+            setSelectedConversationId(allConversations[0].id);
+        }
+    }
+    fetchConversations();
+  }, []);
 
-  const selectedConversation = conversations.find(c => c.id === selectedConversationId)!;
+  const selectedConversation = conversations.find(c => c.id === selectedConversationId);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !selectedConversationId) return;
 
     try {
-      // Simuler l'envoi du message
-      const newMsg = {
-        id: `msg-${Date.now()}`,
-        senderId: user.lawyer.email,
-        content: newMessage,
-        timestamp: new Date().toISOString(),
-        read: false
-      };
+      const sentMessage = await sendMessage(selectedConversationId, newMessage, staticUserData.lawyer.id);
 
-      setConversations(prev => 
-        prev.map(c => 
-          c.id === selectedConversationId 
-            ? { 
-                ...c, 
-                messages: [...c.messages, newMsg],
-                unreadCount: c.unreadCount + 1
-              } 
-            : c
-        )
-      );
-      
-      setNewMessage("");
-      toast({ title: "Message envoyé", description: "Votre message a été envoyé." });
+      if (sentMessage.success && sentMessage.newMessage) {
+         setConversations(prev => 
+            prev.map(c => 
+              c.id === selectedConversationId 
+                ? { 
+                    ...c, 
+                    messages: [...c.messages, sentMessage.newMessage!],
+                  } 
+                : c
+            )
+          );
+          setNewMessage("");
+          toast({ title: "Message envoyé", description: "Votre message a été envoyé." });
+      } else {
+        throw new Error(sentMessage.error)
+      }
     } catch (error) {
       toast({
         variant: "destructive",
@@ -61,13 +67,13 @@ export default function LawyerMessagesPage() {
   };
 
   useEffect(() => {
-    if (scrollAreaRef.current) {
+    if (scrollAreaRef.current && selectedConversation?.messages.length) {
       const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
       if (viewport) {
         viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
       }
     }
-  }, [selectedConversation.messages.length]);
+  }, [selectedConversation?.messages.length]);
 
   return (
     <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 h-[calc(100vh-4rem)] flex flex-col">
@@ -92,41 +98,43 @@ export default function LawyerMessagesPage() {
               conversations={conversations}
               selectedConversationId={selectedConversationId}
               onSelectConversation={setSelectedConversationId}
-              currentUserId={user.lawyer.email}
+              currentUserId={staticUserData.lawyer.id}
               searchQuery={searchQuery}
             />
           </ScrollArea>
         </Card>
 
-        <Card className="md:col-span-2 lg:col-span-3 flex flex-col">
-          <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={selectedConversation.clientAvatar} alt={selectedConversation.clientName} />
-                <AvatarFallback>{selectedConversation.clientName.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <div>
-                <CardTitle className="font-headline text-lg">
-                  {selectedConversation.clientName}
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Affaire: {selectedConversation.caseNumber}
-                </p>
-              </div>
-            </div>
-          </CardHeader>
-          <ScrollArea className="flex-1" ref={scrollAreaRef}>
-            <MessageView
-              conversation={selectedConversation}
-              currentUserId={user.lawyer.email}
-              lawyerName={user.lawyer.name}
-              lawyerAvatar={user.lawyer.avatar}
-              newMessage={newMessage}
-              onNewMessageChange={setNewMessage}
-              onSendMessage={handleSendMessage}
-            />
-          </ScrollArea>
-        </Card>
+        {selectedConversation && (
+            <Card className="md:col-span-2 lg:col-span-3 flex flex-col">
+            <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
+                <div className="flex items-center gap-3">
+                <Avatar className="h-10 w-10">
+                    <AvatarImage src={selectedConversation.clientAvatar} alt={selectedConversation.clientName} />
+                    <AvatarFallback>{selectedConversation.clientName.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div>
+                    <CardTitle className="font-headline text-lg">
+                    {selectedConversation.clientName}
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                    Affaire: {selectedConversation.caseNumber}
+                    </p>
+                </div>
+                </div>
+            </CardHeader>
+            <ScrollArea className="flex-1" ref={scrollAreaRef}>
+                <MessageView
+                conversation={selectedConversation}
+                currentUserId={staticUserData.lawyer.id}
+                lawyerName={staticUserData.lawyer.name}
+                lawyerAvatar={staticUserData.lawyer.avatar}
+                newMessage={newMessage}
+                onNewMessageChange={setNewMessage}
+                onSendMessage={handleSendMessage}
+                />
+            </ScrollArea>
+            </Card>
+        )}
       </div>
     </div>
   );

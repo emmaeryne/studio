@@ -11,11 +11,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { updateLawyerProfile } from "@/lib/actions";
-import { user as initialUser } from "@/lib/data";
+import { updateLawyerProfile, getLawyerProfile } from "@/lib/actions";
+import { staticUserData, Lawyer } from "@/lib/data";
 import { User, Mail, Building, Phone, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Select,
   SelectContent,
@@ -25,22 +25,13 @@ import {
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 
-type Lawyer = {
-  name: string;
-  email: string;
-  avatar: string;
-  role: string;
-  specialty?: string;
-  phone?: string;
-};
-
 type Errors = {
   name?: string;
   email?: string;
 };
 
 export default function ProfilePage() {
-  const [lawyer, setLawyer] = useState<Lawyer>(initialUser.lawyer);
+  const [lawyer, setLawyer] = useState<Lawyer | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [errors, setErrors] = useState<Errors>({});
@@ -48,8 +39,17 @@ export default function ProfilePage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    const fetchLawyer = async () => {
+        const profile = await getLawyerProfile(staticUserData.lawyer.id);
+        setLawyer(profile);
+    }
+    fetchLawyer();
+  }, []);
+
   // Form validation
   const validateForm = () => {
+    if (!lawyer) return false;
     const newErrors: Errors = {};
     if (!lawyer.name.trim()) newErrors.name = "Le nom complet est requis.";
     if (!lawyer.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lawyer.email))
@@ -61,7 +61,7 @@ export default function ProfilePage() {
   // Handle avatar upload
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0 || !lawyer) return;
     const file = files[0];
     if (file) {
       if (!file.type.startsWith("image/")) {
@@ -94,7 +94,7 @@ export default function ProfilePage() {
 
   // Handle form submission
   const handleSave = async () => {
-    if (!validateForm()) {
+    if (!lawyer || !validateForm()) {
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -117,6 +117,10 @@ export default function ProfilePage() {
       });
     }
   };
+  
+  if (!lawyer) {
+    return <div>Chargement...</div>;
+  }
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -270,7 +274,7 @@ export default function ProfilePage() {
             <div className="flex justify-end gap-4 pt-4">
               <Button
                 variant="outline"
-                onClick={() => setLawyer(initialUser.lawyer)}
+                onClick={() => setLawyer(staticUserData.lawyer)}
               >
                 Annuler
               </Button>
