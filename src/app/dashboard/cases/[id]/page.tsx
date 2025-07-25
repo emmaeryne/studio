@@ -86,9 +86,9 @@ export default function CaseDetailPage({ params: { id } }: { params: { id: strin
             <span className="text-sm text-muted-foreground">Statut :</span>
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Badge variant={getStatusVariant(caseItem.status)} className="cursor-pointer">
+                    <Button variant={getStatusVariant(caseItem.status)} size="sm" className="h-auto py-0.5 px-2.5">
                         {caseItem.status}
-                    </Badge>
+                    </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                     {allStatuses.map(status => (
