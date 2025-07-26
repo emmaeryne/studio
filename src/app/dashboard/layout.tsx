@@ -14,16 +14,15 @@ import {
   Sidebar,
   SidebarHeader,
   SidebarContent,
-  SidebarFooter,
   SidebarTrigger,
   SidebarInset,
 } from "@/components/ui/sidebar";
-import { staticUserData } from "@/lib/data";
-import { getNotifications } from "@/lib/actions";
+import { getNotifications, getCurrentUser } from "@/lib/actions";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { Briefcase } from "lucide-react";
 import { Chatbot } from "@/components/chatbot";
 import { NotificationBell } from "@/components/notification-bell";
+import { redirect } from "next/navigation";
 
 export default async function DashboardLayout({
   children,
@@ -31,7 +30,11 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
 
-  const lawyerUser = staticUserData.lawyer;
+  const lawyerUser = await getCurrentUser();
+  if (!lawyerUser || lawyerUser.role !== 'lawyer') {
+    redirect('/login');
+  }
+
   const lawyerNotifications = await getNotifications(lawyerUser.id);
 
 
@@ -50,9 +53,6 @@ export default async function DashboardLayout({
           <SidebarContent>
             <DashboardNav />
           </SidebarContent>
-          <SidebarFooter>
-            {/* Can add footer items here */}
-          </SidebarFooter>
         </Sidebar>
         <SidebarInset>
           <div className="flex flex-col">

@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Briefcase, User, LogIn, Lock, PlusCircle } from "lucide-react";
+import { Briefcase, User, LogIn, PlusCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -60,8 +60,8 @@ export default function LoginPage() {
         title: "Erreur",
         description: result.error,
       });
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
   
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -95,7 +95,6 @@ export default function LoginPage() {
         title: "Erreur",
         description: errorMessage,
       });
-    } finally {
       setIsLoading(false);
     }
   };

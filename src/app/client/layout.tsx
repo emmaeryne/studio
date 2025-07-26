@@ -9,19 +9,23 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { staticUserData } from "@/lib/data";
-import { getClientCases, getNotifications } from "@/lib/actions";
+import { getClientCases, getNotifications, getCurrentUser } from "@/lib/actions";
 import { Chatbot } from "@/components/chatbot";
 import { RequestAppointmentDialog } from "@/components/request-appointment-dialog";
 import { NotificationBell } from "@/components/notification-bell";
 import { Briefcase } from "lucide-react";
+import { redirect } from "next/navigation";
 
 export default async function ClientLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const clientUser = staticUserData.currentUser;
+  const clientUser = await getCurrentUser();
+  if (!clientUser || clientUser.role !== 'client') {
+    redirect('/login');
+  }
+
   const clientCases = await getClientCases(clientUser.id);
   const clientNotifications = await getNotifications(clientUser.id);
 
@@ -34,7 +38,7 @@ export default async function ClientLayout({
             className="flex items-center gap-2 text-lg font-semibold md:text-base"
           >
             <Briefcase className="h-6 w-6 text-primary" />
-            <span className="font-headline">Liaison Légale</span>
+            <span className="font-headline">AvocatConnect</span>
           </Link>
           <Link
             href="/client/dashboard"
