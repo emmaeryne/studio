@@ -1,3 +1,4 @@
+
 // A dialog for registering a new user (client or lawyer)
 'use client';
 
@@ -55,19 +56,17 @@ export function RegisterDialog({ children }: { children: React.ReactNode }) {
 
     try {
       const result = await registerUser(userData);
-      if (result.success) {
+      if (result.success && result.role) {
         toast({
           title: 'Compte créé',
           description: 'Votre compte a été créé avec succès. Vous êtes maintenant connecté.',
         });
-        setOpen(false);
         router.push(result.role === 'lawyer' ? '/dashboard' : '/client/dashboard');
       } else {
-        // Display the validation error from the server in a toast
         toast({
-          variant: 'destructive',
-          title: 'Erreur de création',
-          description: result.error || "Impossible de créer le compte.",
+            variant: 'destructive',
+            title: 'Erreur de création',
+            description: result.error || "Impossible de créer le compte.",
         });
       }
     } catch (error) {

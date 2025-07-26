@@ -92,11 +92,11 @@ export async function loginUserByEmail(credentials: { email: string; password?: 
     try {
         const { email, role } = credentials;
         const collectionName = role === 'lawyer' ? 'users' : 'clients';
-        const q = query(collection(db, collectionName), where("email", "==", email));
+        const q = query(collection(db, collectionName), where("email", "==", email), limit(1));
         const querySnapshot = await getDocs(q);
 
         if (querySnapshot.empty) {
-            return { success: false, error: `Aucun compte trouvé pour l'email ${email}.` };
+            return { success: false, error: `Aucun compte trouvé pour l'email ${email} avec le rôle ${role}.` };
         }
 
         const userDoc = querySnapshot.docs[0];

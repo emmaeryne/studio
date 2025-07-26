@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -23,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { loginUserByEmail, quickLogin } from "@/lib/actions";
+import { loginUserByEmail, quickLogin, registerUser } from "@/lib/actions";
 import { RegisterDialog } from "@/components/register-dialog";
 
 const LoginSchema = z.object({
@@ -56,8 +57,8 @@ export default function LoginPage() {
         title: "Erreur",
         description: result.error,
       });
-      setIsLoading(false);
     }
+    setIsLoading(false);
   };
   
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -65,15 +66,15 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      LoginSchema.parse({ email, password, role });
-      const result = await loginUserByEmail({ email, password, role });
+      const validatedData = LoginSchema.parse({ email, password, role });
+      const result = await loginUserByEmail(validatedData);
 
-      if (result.success) {
+      if (result.success && result.role) {
         toast({
           title: "Connexion réussie",
           description: `Connexion en tant que ${role === "lawyer" ? "avocat" : "client"}.`,
         });
-        router.push(role === 'lawyer' ? '/dashboard' : '/client/dashboard');
+        router.push(result.role === 'lawyer' ? '/dashboard' : '/client/dashboard');
       } else {
         throw new Error(result.error);
       }
