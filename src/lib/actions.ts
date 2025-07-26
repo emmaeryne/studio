@@ -680,8 +680,10 @@ export async function markConversationAsRead(conversationId: string, currentUser
 export async function getClientInvoices(clientId: string): Promise<Invoice[]> {
     if (!clientId) return [];
     const invoicesCollection = collection(db, 'invoices');
-    const q = query(invoicesCollection, where('clientId', '==', clientId), orderBy('date', 'desc'));
-    return getCollection<Invoice>('invoices', q);
+    const q = query(invoicesCollection, where('clientId', '==', clientId));
+    const invoices = await getCollection<Invoice>('invoices', q);
+    // Sort manually to avoid needing a composite index
+    return invoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 export async function createInvoice(data: {caseId: string; totalCost: number; firstInstallment: number;}) {
