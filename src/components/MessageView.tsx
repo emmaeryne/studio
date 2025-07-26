@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Conversation } from "@/lib/data";
@@ -11,8 +12,9 @@ import { SendHorizonal } from "lucide-react";
 interface MessageViewProps {
   conversation: Conversation;
   currentUserId: string;
-  lawyerName: string;
-  lawyerAvatar: string;
+  currentUserAvatar: string;
+  otherUserName: string;
+  otherUserAvatar: string;
   newMessage: string;
   onNewMessageChange: (value: string) => void;
   onSendMessage: (e: React.FormEvent) => void;
@@ -21,13 +23,13 @@ interface MessageViewProps {
 export function MessageView({
   conversation,
   currentUserId,
-  lawyerName,
-  lawyerAvatar,
+  currentUserAvatar,
+  otherUserName,
+  otherUserAvatar,
   newMessage,
   onNewMessageChange,
   onSendMessage,
 }: MessageViewProps) {
-  const isUserLawyer = currentUserId === 'm.dupont@cabinet-legal.fr'; // Using static ID for simplicity
 
   return (
     <>
@@ -47,13 +49,11 @@ export function MessageView({
               {message.senderId !== currentUserId && (
                 <Avatar className="h-8 w-8">
                   <AvatarImage
-                    src={message.senderId === 'm.dupont@cabinet-legal.fr' ? lawyerAvatar : conversation.clientAvatar}
-                    alt={message.senderId === 'm.dupont@cabinet-legal.fr' ? lawyerName : conversation.clientName}
+                    src={otherUserAvatar}
+                    alt={otherUserName}
                   />
                   <AvatarFallback>
-                    {message.senderId === 'm.dupont@cabinet-legal.fr' 
-                      ? lawyerName.charAt(0) 
-                      : conversation.clientName.charAt(0)}
+                    {otherUserName.charAt(0)}
                   </AvatarFallback>
                 </Avatar>
               )}
@@ -81,13 +81,11 @@ export function MessageView({
               {message.senderId === currentUserId && (
                 <Avatar className="h-8 w-8">
                   <AvatarImage 
-                    src={isUserLawyer ? lawyerAvatar : conversation.clientAvatar} 
-                    alt={isUserLawyer ? lawyerName : conversation.clientName}
+                    src={currentUserAvatar} 
+                    alt="Current User"
                   />
                   <AvatarFallback>
-                    {isUserLawyer 
-                      ? lawyerName.charAt(0) 
-                      : conversation.clientName.charAt(0)}
+                    U
                   </AvatarFallback>
                 </Avatar>
               )}

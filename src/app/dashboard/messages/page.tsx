@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -6,12 +7,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { sendMessage, getConversations, getLawyerProfile } from "@/lib/actions";
+import { sendMessage, getConversations, getCurrentUser } from "@/lib/actions";
 import { MessageList } from "@/components/MessageList";
 import { MessageView } from "@/components/MessageView";
-import { staticUserData, type Conversation, type Lawyer } from "@/lib/data";
-import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
-import { AvatarImage } from "@/components/ui/avatar";
+import { type Conversation, type Lawyer } from "@/lib/data";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function LawyerMessagesPage() {
   const [lawyer, setLawyer] = useState<Lawyer | null>(null);
@@ -23,18 +23,19 @@ export default function LawyerMessagesPage() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
-    const fetchConversations = async () => {
-        const allConversations = await getConversations();
-        const lawyerProfile = await getLawyerProfile(staticUserData.lawyer.id);
-        
-        setLawyer(lawyerProfile);
-        setConversations(allConversations);
+    const fetchData = async () => {
+        const user = await getCurrentUser();
+        if (user && user.role === 'lawyer') {
+            setLawyer(user as Lawyer);
+            const allConversations = await getConversations();
+            setConversations(allConversations);
 
-        if (allConversations.length > 0) {
-            setSelectedConversationId(allConversations[0].id);
+            if (allConversations.length > 0) {
+                setSelectedConversationId(allConversations[0].id);
+            }
         }
     }
-    fetchConversations();
+    fetchData();
   }, []);
 
   const selectedConversation = conversations.find(c => c.id === selectedConversationId);
@@ -58,7 +59,6 @@ export default function LawyerMessagesPage() {
             )
           );
           setNewMessage("");
-          toast({ title: "Message envoyé", description: "Votre message a été envoyé." });
       } else {
         throw new Error(sentMessage.error)
       }
@@ -81,7 +81,20 @@ export default function LawyerMessagesPage() {
   }, [selectedConversation?.messages.length]);
 
   if (!lawyer) {
-      return <div>Chargement...</div>;
+      return <div className="text-center p-8">Chargement de votre profil...</div>;
+  }
+  
+  if (conversations.length === 0) {
+    return (
+        <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 h-full flex flex-col items-center justify-center">
+            <Card className="p-8 text-center">
+                <CardTitle className="font-headline text-xl">Aucune conversation</CardTitle>
+                <CardContent className="pt-4">
+                    <p className="text-muted-foreground">Aucune conversation n'a encore été initiée.</p>
+                </CardContent>
+            </Card>
+        </div>
+    )
   }
 
   return (
@@ -135,8 +148,9 @@ export default function LawyerMessagesPage() {
                 <MessageView
                 conversation={selectedConversation}
                 currentUserId={lawyer.id}
-                lawyerName={lawyer.name}
-                lawyerAvatar={lawyer.avatar}
+                currentUserAvatar={lawyer.avatar}
+                otherUserName={selectedConversation.clientName}
+                otherUserAvatar={selectedConversation.clientAvatar}
                 newMessage={newMessage}
                 onNewMessageChange={setNewMessage}
                 onSendMessage={handleSendMessage}

@@ -11,8 +11,7 @@ import { sendMessage, getClientConversations, getLawyerProfile, getCurrentUser }
 import { MessageList } from "@/components/MessageList";
 import { MessageView } from "@/components/MessageView";
 import { type Conversation, type Client, type Lawyer } from "@/lib/data";
-import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
-import { AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function ClientMessagesPage() {
   const [clientUser, setClientUser] = useState<Client | null>(null);
@@ -28,15 +27,15 @@ export default function ClientMessagesPage() {
     const fetchData = async () => {
         const user = await getCurrentUser();
         if (user && user.role === 'client') {
-            setClientUser(user);
-            const clientProfile = await getClientConversations(user.id);
+            setClientUser(user as Client);
+            const clientConversations = await getClientConversations(user.id);
             const lawyerProfile = await getLawyerProfile();
 
             setLawyer(lawyerProfile);
-            setConversations(clientProfile);
+            setConversations(clientConversations);
 
-            if (clientProfile.length > 0) {
-                setSelectedConversationId(clientProfile[0].id);
+            if (clientConversations.length > 0) {
+                setSelectedConversationId(clientConversations[0].id);
             }
         }
     };
@@ -66,7 +65,6 @@ export default function ClientMessagesPage() {
             )
           );
           setNewMessage("");
-          toast({ title: "Message envoyé", description: "Votre message a été envoyé." });
       } else {
         throw new Error(sentMessage.error);
       }
@@ -88,7 +86,11 @@ export default function ClientMessagesPage() {
     }
   }, [selectedConversation?.messages.length]);
   
-  if (conversations.length === 0 || !clientUser || !lawyer) {
+  if (!clientUser) {
+      return <div className="text-center p-8">Chargement de votre profil...</div>
+  }
+
+  if (conversations.length === 0) {
     return (
         <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 h-full flex flex-col items-center justify-center">
             <Card className="p-8 text-center">
@@ -130,7 +132,7 @@ export default function ClientMessagesPage() {
           </ScrollArea>
         </Card>
 
-        {selectedConversation && (
+        {selectedConversation && lawyer && (
           <Card className="md:col-span-2 lg:col-span-3 flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
               <div className="flex items-center gap-3">
@@ -152,8 +154,9 @@ export default function ClientMessagesPage() {
               <MessageView
                 conversation={selectedConversation}
                 currentUserId={clientUser.id}
-                lawyerName={lawyer.name}
-                lawyerAvatar={lawyer.avatar}
+                currentUserAvatar={clientUser.avatar}
+                otherUserName={lawyer.name}
+                otherUserAvatar={lawyer.avatar}
                 newMessage={newMessage}
                 onNewMessageChange={setNewMessage}
                 onSendMessage={handleSendMessage}
