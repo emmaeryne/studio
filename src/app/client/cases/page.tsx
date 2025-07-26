@@ -9,13 +9,17 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, FileText, ArrowUpRight } from "lucide-react";
-import { getClientCases } from "@/lib/actions";
-import { staticUserData } from "@/lib/data";
+import { getClientCases, getCurrentUser } from "@/lib/actions";
 import { Badge } from "@/components/ui/badge";
 import { AddClientCaseDialog } from "@/components/add-client-case-dialog";
+import { redirect } from "next/navigation";
 
 export default async function ClientCasesPage() {
-  const clientUser = staticUserData.currentUser;
+  const clientUser = await getCurrentUser();
+  if (!clientUser || clientUser.role !== 'client') {
+    redirect('/login');
+  }
+
   const clientCases = await getClientCases(clientUser.id);
 
   const getStatusVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {

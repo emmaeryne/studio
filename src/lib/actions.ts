@@ -33,18 +33,24 @@ const convertTimestamps = (data: any) => {
 
 // --- AUTH / SESSION ACTIONS ---
 
-export async function getCurrentUser() {
+export async function getCurrentUser(): Promise<(Client & { role: 'client' }) | (Lawyer & { role: 'lawyer' }) | null> {
     const session = cookies().get(SESSION_COOKIE_NAME)?.value;
     if (!session) return null;
     try {
         const { id, role } = JSON.parse(session);
         const collectionName = role === 'lawyer' ? 'users' : 'clients';
-        const user = await getDocument(collectionName, id);
+        const user = await getDocument<Client | Lawyer>(collectionName, id);
+        if (!user) {
+            await clearSession();
+            return null;
+        }
         return { ...user, role } as (Client & { role: 'client' }) | (Lawyer & { role: 'lawyer' });
     } catch (error) {
+        await clearSession();
         return null;
     }
 }
+
 
 async function createSession(user: { id: string, role: 'client' | 'lawyer' }) {
     cookies().set(SESSION_COOKIE_NAME, JSON.stringify(user), {
@@ -80,17 +86,11 @@ export async function registerUser(userData: { name: string; email: string; role
 
         await setDoc(newUserRef, newUser);
         await createSession({ id: newUserRef.id, role });
+        return { success: true, role: role };
 
     } catch (error) {
         console.error("Error registering user: ", error);
         return { success: false, error: 'Failed to create account.' };
-    }
-    
-    // Server-side redirect after successful registration
-    if (userData.role === 'lawyer') {
-        redirect('/dashboard');
-    } else {
-        redirect('/client/dashboard');
     }
 }
 
@@ -243,7 +243,7 @@ export async function addClientCase(newCase: { caseType: Case['caseType']; descr
     const casesCountSnapshot = await getDocs(collection(db, 'cases'));
     const nextCaseNumber = `CASE-${String(casesCountSnapshot.size + 1).padStart(3, '0')}`;
 
-    const newCaseData: Omit<Case, 'id' | '_estimate'> = {
+    const newCaseData: Omit<Case, 'id'> = {
         caseNumber: nextCaseNumber,
         clientName: currentUser.name,
         clientId: currentUser.id,
@@ -256,9 +256,10 @@ export async function addClientCase(newCase: { caseType: Case['caseType']; descr
         documents: [],
         appointments: [],
         keyDeadlines: [],
+        ...(caseEstimate && { _estimate: caseEstimate })
     };
     
-    const docRef = await addDoc(collection(db, 'cases'), { ...newCaseData, ...(caseEstimate && { _estimate: caseEstimate }) });
+    const docRef = await addDoc(collection(db, 'cases'), newCaseData);
     
     revalidatePath('/client/cases');
     revalidatePath(`/client/cases/${docRef.id}`);
@@ -454,8 +455,11 @@ export async function rescheduleAppointment(appointmentData: { appointmentId: st
 }
 
 // --- User/Profile Actions ---
-export async function getLawyerProfile(id: string): Promise<Lawyer | null> {
-    return getDocument<Lawyer>('users', id);
+export async function getLawyerProfile(): Promise<Lawyer | null> {
+    const q = query(collection(db, 'users'), limit(1));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return null;
+    return getDocument<Lawyer>('users', snapshot.docs[0].id);
 }
 
 export async function getClientProfile(id: string): Promise<Client | null> {

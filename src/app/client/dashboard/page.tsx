@@ -32,11 +32,22 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
-import { staticUserData } from "@/lib/data"
-import { getClientCases, getClientConversations, getClientInvoices, getAppointments } from "@/lib/actions"
+import { getClientCases, getClientConversations, getClientInvoices, getAppointments, getCurrentUser, getLawyerProfile } from "@/lib/actions"
+import { redirect } from "next/navigation"
 
 export default async function ClientDashboard() {
-  const clientUser = staticUserData.currentUser;
+  const clientUser = await getCurrentUser();
+  if (!clientUser || clientUser.role !== 'client') {
+    redirect('/login');
+  }
+
+  const lawyerUser = await getLawyerProfile();
+  if (!lawyerUser) {
+      // Handle case where there's no lawyer, maybe show an error or a different state
+      return <p>Impossible de charger les informations de l'avocat.</p>;
+  }
+
+
   const clientCases = await getClientCases(clientUser.id);
   const clientConversations = await getClientConversations(clientUser.id);
   const clientInvoices = await getClientInvoices(clientUser.id);
@@ -64,17 +75,16 @@ export default async function ClientDashboard() {
     }
   };
   
-  const lawyerUser = staticUserData.lawyer;
-
   const getLatestMessages = () => {
+    if (!lawyerUser) return [];
     return clientConversations
       .flatMap(conv => conv.messages.map(msg => ({
         ...msg,
         conversationId: conv.id,
         caseNumber: conv.caseNumber,
-        senderName: msg.senderId === lawyerUser.email ? lawyerUser.name : clientUser.name,
-        senderAvatar: msg.senderId === lawyerUser.email ? lawyerUser.avatar : clientUser.avatar,
-        isFromLawyer: msg.senderId === lawyerUser.email
+        senderName: msg.senderId === lawyerUser.id ? lawyerUser.name : clientUser.name,
+        senderAvatar: msg.senderId === lawyerUser.id ? lawyerUser.avatar : clientUser.avatar,
+        isFromLawyer: msg.senderId === lawyerUser.id
       })))
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, 3);

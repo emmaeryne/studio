@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -6,10 +7,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { sendMessage, getClientConversations, getLawyerProfile } from "@/lib/actions";
+import { sendMessage, getClientConversations, getLawyerProfile, getCurrentUser } from "@/lib/actions";
 import { MessageList } from "@/components/MessageList";
 import { MessageView } from "@/components/MessageView";
-import { staticUserData, type Conversation, type Client, type Lawyer } from "@/lib/data";
+import { type Conversation, type Client, type Lawyer } from "@/lib/data";
 import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
 import { AvatarImage } from "@/components/ui/avatar";
 
@@ -25,15 +26,18 @@ export default function ClientMessagesPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-        const clientProfile = await getClientConversations(staticUserData.currentUser.id);
-        const lawyerProfile = await getLawyerProfile(staticUserData.lawyer.id);
+        const user = await getCurrentUser();
+        if (user && user.role === 'client') {
+            setClientUser(user);
+            const clientProfile = await getClientConversations(user.id);
+            const lawyerProfile = await getLawyerProfile();
 
-        setClientUser(staticUserData.currentUser as Client);
-        setLawyer(lawyerProfile);
-        setConversations(clientProfile);
+            setLawyer(lawyerProfile);
+            setConversations(clientProfile);
 
-        if (clientProfile.length > 0) {
-            setSelectedConversationId(clientProfile[0].id);
+            if (clientProfile.length > 0) {
+                setSelectedConversationId(clientProfile[0].id);
+            }
         }
     };
     fetchData();

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -18,13 +19,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { updateClientProfile, getClientProfile } from "@/lib/actions";
-import { staticUserData, Client } from "@/lib/data";
+import { updateClientProfile, getClientProfile, getCurrentUser } from "@/lib/actions";
+import { type Client } from "@/lib/data";
 import { Mail, Phone, Home, Upload } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 export default function ClientProfilePage() {
   const [client, setClient] = useState<Client | null>(null);
+  const [initialClient, setInitialClient] = useState<Client | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [errors, setErrors] = useState<{ name?: string; email?: string }>({});
@@ -34,8 +36,12 @@ export default function ClientProfilePage() {
   
   useEffect(() => {
     const fetchClient = async () => {
-        const profile = await getClientProfile(staticUserData.currentUser.id);
-        setClient(profile);
+        const user = await getCurrentUser();
+        if (user && user.role === 'client') {
+            const profile = await getClientProfile(user.id);
+            setClient(profile);
+            setInitialClient(profile);
+        }
     }
     fetchClient();
   }, [])
@@ -238,7 +244,7 @@ export default function ClientProfilePage() {
             <div className="flex justify-end gap-4 pt-4">
               <Button
                 variant="outline"
-                onClick={() => setClient(staticUserData.currentUser)}
+                onClick={() => setClient(initialClient)}
               >
                 Annuler
               </Button>
