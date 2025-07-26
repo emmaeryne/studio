@@ -72,7 +72,7 @@ export async function addCase(newCaseData: { clientName: string; caseType: Case[
 
         if (querySnapshot.empty) {
             const newClientRef = doc(collection(db, 'clients'));
-            const newClientData = {
+            const newClientData: Client = {
                 id: newClientRef.id,
                 name: newCaseData.clientName,
                 email: `${newCaseData.clientName.toLowerCase().replace(/\s/g, '.')}@example.com`,
@@ -105,9 +105,10 @@ export async function addCase(newCaseData: { clientName: string; caseType: Case[
         };
         
         const docRef = await addDoc(collection(db, 'cases'), newCase);
+        const addedCase = await getCaseById(docRef.id);
         
         revalidatePath('/dashboard/cases');
-        return { success: true, newCase: {id: docRef.id, ...newCase } };
+        return { success: true, newCase: addedCase };
     } catch (error) {
         console.error("Error adding case: ", error);
         return { success: false, error: 'Failed to add case.' };
@@ -123,7 +124,6 @@ export async function addClientCase(newCase: { caseType: Case['caseType']; descr
         caseEstimate = await estimateCaseCost(newCase);
     } catch(e) {
         console.error("AI cost estimation failed, proceeding without it.", e);
-        // Continue without the estimate if the AI call fails
     }
     
     const casesCountSnapshot = await getDocs(collection(db, 'cases'));
