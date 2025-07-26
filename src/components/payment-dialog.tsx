@@ -1,3 +1,4 @@
+
 // A dialog for simulating a credit card payment.
 'use client';
 
