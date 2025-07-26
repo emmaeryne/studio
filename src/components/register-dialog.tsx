@@ -67,7 +67,12 @@ export function RegisterDialog({ children }: { children: React.ReactNode }) {
             router.push('/client/dashboard');
         }
       } else {
-        throw new Error(result.error || "Failed to create account");
+        // Display the validation error from the server in a toast
+        toast({
+          variant: 'destructive',
+          title: 'Erreur de création',
+          description: result.error || "Impossible de créer le compte.",
+        });
       }
     } catch (error) {
       console.error(error);
