@@ -36,10 +36,7 @@ export default function ClientMessagesPage() {
 
             if (clientConversations.length > 0) {
                 const firstConvoId = clientConversations[0].id;
-                setSelectedConversationId(firstConvoId);
-                if (clientConversations[0].unreadCount > 0) {
-                    await markConversationAsRead(firstConvoId, user.id);
-                }
+                await handleSelectConversation(firstConvoId);
             }
         }
     };
@@ -52,7 +49,15 @@ export default function ClientMessagesPage() {
       if (conversation && conversation.unreadCount > 0 && clientUser) {
           const success = await markConversationAsRead(convoId, clientUser.id);
           if (success) {
-              setConversations(prev => prev.map(c => c.id === convoId ? {...c, unreadCount: 0} : c));
+              setConversations(prev => {
+                const newConversations = prev.map(c => c.id === convoId ? {...c, unreadCount: 0} : c);
+                // Also update the specific conversation object
+                const updatedConvo = newConversations.find(c => c.id === convoId);
+                if (updatedConvo) {
+                    updatedConvo.unreadCount = 0;
+                }
+                return newConversations;
+              });
           }
       }
   }
@@ -81,13 +86,13 @@ export default function ClientMessagesPage() {
           );
           setNewMessage("");
       } else {
-        throw new Error(sentMessage.error);
+        throw new Error(sentMessage.error || "Failed to send message");
       }
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Échec de l'envoi du message.",
+        description: (error as Error).message || "Échec de l'envoi du message.",
       });
     }
   };

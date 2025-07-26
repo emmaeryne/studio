@@ -60,13 +60,13 @@ export default function LawyerMessagesPage() {
           );
           setNewMessage("");
       } else {
-        throw new Error(sentMessage.error)
+        throw new Error(sentMessage.error || "Failed to send message")
       }
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Échec de l'envoi du message.",
+        description: (error as Error).message || "Échec de l'envoi du message.",
       });
     }
   };
@@ -90,7 +90,7 @@ export default function LawyerMessagesPage() {
             <Card className="p-8 text-center">
                 <CardTitle className="font-headline text-xl">Aucune conversation</CardTitle>
                 <CardContent className="pt-4">
-                    <p className="text-muted-foreground">Aucune conversation n'a encore été initiée.</p>
+                    <p className="text-muted-foreground">Aucune conversation n'a encore été initiée. Une conversation sera créée pour chaque nouvelle affaire.</p>
                 </CardContent>
             </Card>
         </div>

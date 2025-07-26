@@ -69,6 +69,7 @@ export async function registerUser(userData: { name: string; email: string; role
     try {
         const { name, email, role } = userData;
         const collectionName = role === 'lawyer' ? 'users' : 'clients';
+        
         const q = query(collection(db, collectionName), where("email", "==", email));
         const querySnapshot = await getDocs(q);
 
@@ -86,6 +87,7 @@ export async function registerUser(userData: { name: string; email: string; role
 
         await setDoc(newUserRef, newUser);
         await createSession({ id: newUserRef.id, role });
+        
         redirect(role === 'lawyer' ? '/dashboard' : '/client/dashboard');
 
     } catch (error) {
@@ -174,6 +176,20 @@ export async function getClientCases(clientId: string): Promise<Case[]> {
     return getCollection<Case>('cases', q);
 }
 
+// Helper function to create a conversation
+async function createConversation(caseData: { id: string, caseNumber: string, clientId: string, clientName: string, clientAvatar: string }) {
+    const newConversation: Omit<Conversation, 'id'> = {
+        caseId: caseData.id,
+        caseNumber: caseData.caseNumber,
+        clientId: caseData.clientId,
+        clientName: caseData.clientName,
+        clientAvatar: caseData.clientAvatar,
+        unreadCount: 0,
+        messages: [],
+    };
+    await addDoc(collection(db, 'conversations'), newConversation);
+}
+
 export async function addCase(newCaseData: { clientName: string; caseType: Case['caseType']; description: string }) {
     try {
         const clientsCollection = collection(db, 'clients');
@@ -217,8 +233,13 @@ export async function addCase(newCaseData: { clientName: string; caseType: Case[
         
         const docRef = await addDoc(collection(db, 'cases'), newCase);
         const addedCase = await getCaseById(docRef.id);
+
+        if (addedCase) {
+             await createConversation(addedCase);
+        }
         
         revalidatePath('/dashboard/cases');
+        revalidatePath('/dashboard/messages');
         return { success: true, newCase: addedCase };
     } catch (error) {
         console.error("Error adding case: ", error);
@@ -229,7 +250,7 @@ export async function addCase(newCaseData: { clientName: string; caseType: Case[
 export async function addClientCase(newCase: { caseType: Case['caseType']; description: string }) {
     const currentUser = await getCurrentUser();
     if (!currentUser || currentUser.role !== 'client') {
-        return { success: false, error: "Utilisateur non autorisé." };
+        throw new Error("Utilisateur non autorisé.");
     }
     const currentDate = new Date();
 
@@ -260,9 +281,15 @@ export async function addClientCase(newCase: { caseType: Case['caseType']; descr
     };
     
     const docRef = await addDoc(collection(db, 'cases'), newCaseData);
+    const addedCase = await getCaseById(docRef.id);
+
+    if (addedCase) {
+        await createConversation(addedCase);
+    }
     
     revalidatePath('/client/cases');
     revalidatePath(`/client/cases/${docRef.id}`);
+    revalidatePath('/client/messages');
     
     redirect(`/client/cases/${docRef.id}`);
 }
@@ -526,6 +553,8 @@ export async function sendMessage(conversationId: string, content: string, sende
         const conversationRef = doc(db, "conversations", conversationId);
         const conversationSnap = await getDoc(conversationRef);
         if(!conversationSnap.exists()) return { success: false, error: "Conversation not found" };
+        
+        const conversationData = conversationSnap.data() as Conversation;
 
         const newMessage: Message = {
             id: `msg-${Date.now()}`,
@@ -535,9 +564,12 @@ export async function sendMessage(conversationId: string, content: string, sende
             read: false
         };
         
-        const existingMessages = conversationSnap.data().messages || [];
+        const existingMessages = conversationData.messages || [];
+        const unreadCount = senderId === conversationData.clientId ? conversationData.unreadCount : conversationData.unreadCount + 1;
+
         await updateDoc(conversationRef, {
-            messages: [...existingMessages, newMessage]
+            messages: [...existingMessages, newMessage],
+            unreadCount: unreadCount,
         });
 
         revalidatePath('/dashboard/messages');
