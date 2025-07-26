@@ -17,8 +17,8 @@ interface FinancialManagementProps {
 }
 
 export function FinancialManagement({ caseItem, onUpdate }: FinancialManagementProps) {
-  const [totalCost, setTotalCost] = useState(caseItem.totalCost || '');
-  const [firstInstallment, setFirstInstallment] = useState(caseItem.firstInstallment || '');
+  const [totalCost, setTotalCost] = useState(caseItem.totalCost || 0);
+  const [firstInstallment, setFirstInstallment] = useState(caseItem.firstInstallment || 0);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -105,7 +105,7 @@ export function FinancialManagement({ caseItem, onUpdate }: FinancialManagementP
                     type="number"
                     placeholder="5000"
                     value={totalCost}
-                    onChange={(e) => setTotalCost(e.target.value)}
+                    onChange={(e) => setTotalCost(parseFloat(e.target.value) || 0)}
                     />
                 </div>
                 <div className="space-y-2">
@@ -115,7 +115,7 @@ export function FinancialManagement({ caseItem, onUpdate }: FinancialManagementP
                     type="number"
                     placeholder="1500"
                     value={firstInstallment}
-                    onChange={(e) => setFirstInstallment(e.target.value)}
+                    onChange={(e) => setFirstInstallment(parseFloat(e.target.value) || 0)}
                     />
                 </div>
                 </div>
