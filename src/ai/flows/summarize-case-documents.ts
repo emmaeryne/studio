@@ -31,7 +31,9 @@ const summarizeCaseDocumentsPrompt = ai.definePrompt({
   output: {schema: SummarizeCaseDocumentsOutputSchema},
   prompt: `You are a lawyer specializing in quickly understanding case documents.
 
-You will be provided with a case document. Extract and summarize the key textual information within it. If the document is an image, describe the relevant information. If the document format is not suitable for text extraction (like a spreadsheet), state that the format is unsupported.
+You will be provided with a case document. Extract and summarize the key textual information within it. 
+If the document is an image, describe the relevant information. 
+If the document format is not suitable for text extraction (like a spreadsheet or binary file), state clearly that the format is unsupported for analysis.
 
 Document: {{media url=documentDataUri}}`,
 });
