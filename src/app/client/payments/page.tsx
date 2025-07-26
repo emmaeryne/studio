@@ -42,7 +42,7 @@ export default function ClientPaymentsPage() {
     fetchInvoices();
   }, []);
 
-  const handlePaymentSuccess = async (invoiceId: string) => {
+  const handlePaymentSuccess = async (invoiceId: string, method: 'card' | 'transfer' | 'cash') => {
     const res = await makePayment(invoiceId);
     if (res.success) {
         setInvoices(
@@ -52,7 +52,7 @@ export default function ClientPaymentsPage() {
         );
         toast({
           title: "Paiement Réussi",
-          description: "Votre facture a été payée avec succès.",
+          description: `Votre facture a été marquée comme payée via ${method === 'card' ? 'carte' : (method === 'transfer' ? 'virement' : 'espèces')}.`,
         });
         setSelectedInvoice(null); // Close the dialog
     } else {
