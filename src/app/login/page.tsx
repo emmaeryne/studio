@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -9,13 +9,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Briefcase, User, LogIn, Lock } from "lucide-react";
+import { Briefcase, User, LogIn, Lock, PlusCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import Head from "next/head";
 import { z } from "zod";
 import {
   Select,
@@ -24,11 +23,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { loginUserByEmail, quickLogin } from "@/lib/actions";
+import { RegisterDialog } from "@/components/register-dialog";
 
-// Validation schema for login form
 const LoginSchema = z.object({
   email: z.string().email("Adresse email invalide").min(1, "L'email est requis"),
-  password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
+  password: z.string().min(1, "Le mot de passe est requis"),
   role: z.enum(["lawyer", "client"]),
 });
 
@@ -39,26 +39,57 @@ export default function LoginPage() {
   const [role, setRole] = useState<"lawyer" | "client">("client");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const { toast } = useToast();
+  const router = useRouter();
 
+  const handleQuickLogin = async (role: "lawyer" | "client") => {
+    setIsLoading(true);
+    const result = await quickLogin(role);
+    if (result.success) {
+      toast({
+        title: "Connexion réussie",
+        description: `Connexion en tant que ${role === "lawyer" ? "avocat" : "client"}.`,
+      });
+      if (result.role === "lawyer") {
+        router.push("/dashboard");
+      } else {
+        router.push("/client/dashboard");
+      }
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: result.error,
+      });
+    }
+    setIsLoading(false);
+  };
+  
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const validated = LoginSchema.parse({ email, password, role });
-      // Simulate login API call (replace with actual authentication logic, e.g., NextAuth.js)
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast({
-        title: "Connexion réussie",
-        description: `Connexion en tant que ${validated.role === "lawyer" ? "avocat" : "client"}.`,
-      });
-      // Redirect based on role
-      window.location.href = validated.role === "lawyer" ? "/dashboard" : "/client/dashboard";
+      LoginSchema.parse({ email, password, role });
+      const result = await loginUserByEmail({ email, password, role });
+
+      if (result.success) {
+        toast({
+          title: "Connexion réussie",
+          description: `Connexion en tant que ${role === "lawyer" ? "avocat" : "client"}.`,
+        });
+        if (role === 'lawyer') {
+          router.push('/dashboard');
+        } else {
+          router.push('/client/dashboard');
+        }
+      } else {
+        throw new Error(result.error);
+      }
     } catch (error) {
       const errorMessage =
         error instanceof z.ZodError
           ? error.errors[0].message
-          : "Échec de la connexion. Veuillez réessayer.";
+          : (error as Error).message || "Échec de la connexion. Veuillez réessayer.";
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -71,11 +102,6 @@ export default function LoginPage() {
 
   return (
     <>
-      <Head>
-        <title>Connexion - AvocatConnect</title>
-        <meta name="description" content="Connectez-vous à AvocatConnect pour accéder à votre espace avocat ou client." />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-background to-accent/10 px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -105,39 +131,43 @@ export default function LoginPage() {
                     className="grid gap-4"
                   >
                     <Button
-                      asChild
                       size="lg"
                       className="w-full font-semibold bg-primary hover:bg-primary/90 hover:scale-105 transition-all duration-200"
                       disabled={isLoading}
+                      onClick={() => handleQuickLogin("lawyer")}
                       aria-label="Se connecter en tant qu'avocat"
                     >
-                      <Link href="/dashboard">
-                        <Briefcase className="mr-2 h-5 w-5" />
-                        Espace Avocat
-                      </Link>
+                      <Briefcase className="mr-2 h-5 w-5" />
+                      Espace Avocat
                     </Button>
                     <Button
-                      asChild
                       size="lg"
                       variant="outline"
                       className="w-full font-semibold hover:bg-accent/10 hover:scale-105 transition-all duration-200"
                       disabled={isLoading}
+                      onClick={() => handleQuickLogin("client")}
                       aria-label="Se connecter en tant que client"
                     >
-                      <Link href="/client/dashboard">
-                        <User className="mr-2 h-5 w-5" />
-                        Espace Client
-                      </Link>
+                      <User className="mr-2 h-5 w-5" />
+                      Espace Client
                     </Button>
-                    <Button
-                      variant="link"
-                      className="text-sm text-primary hover:underline"
-                      onClick={() => setShowLoginForm(true)}
-                      aria-label="Afficher le formulaire de connexion"
-                      disabled={isLoading}
-                    >
-                      Connexion avec email et mot de passe
-                    </Button>
+                    <div className="flex justify-center items-center gap-2">
+                        <Button
+                        variant="link"
+                        className="text-sm text-primary hover:underline"
+                        onClick={() => setShowLoginForm(true)}
+                        aria-label="Afficher le formulaire de connexion"
+                        disabled={isLoading}
+                        >
+                        Connexion avec email
+                        </Button>
+                        <span className="text-muted-foreground">ou</span>
+                         <RegisterDialog>
+                            <Button variant="link" className="text-sm text-primary hover:underline p-0">
+                                Créer un compte
+                            </Button>
+                        </RegisterDialog>
+                    </div>
                   </motion.div>
                 ) : (
                   <motion.form
@@ -149,7 +179,7 @@ export default function LoginPage() {
                     className="grid gap-4"
                     onSubmit={handleLoginSubmit}
                   >
-                    <div className="grid gap-2">
+                     <div className="grid gap-2">
                       <Label htmlFor="role" className="font-semibold">
                         Rôle
                       </Label>
@@ -241,24 +271,20 @@ export default function LoginPage() {
                       >
                         Retour à la sélection du profil
                       </Button>
-                      <Button
-                        variant="link"
-                        className="text-sm text-primary hover:underline"
-                        asChild
-                        aria-label="Mot de passe oublié"
-                        disabled={isLoading}
-                      >
-                        <Link href="/forgot-password">
-                          <Lock className="mr-1 h-4 w-4 inline" />
-                          Mot de passe oublié
-                        </Link>
-                      </Button>
+                       <RegisterDialog>
+                            <Button variant="link" className="text-sm text-primary hover:underline p-0 h-auto">
+                                <PlusCircle className="mr-1 h-4 w-4" /> Créer un compte
+                            </Button>
+                        </RegisterDialog>
                     </div>
                   </motion.form>
                 )}
               </AnimatePresence>
             </CardContent>
           </Card>
+           <p className="text-center text-xs text-muted-foreground mt-4">
+              Développé par awini emna
+            </p>
         </motion.div>
       </div>
     </>

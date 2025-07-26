@@ -2,39 +2,145 @@
 'use server'
 
 import { db } from './firebase';
-import { collection, getDocs, doc, addDoc, updateDoc, setDoc, getDoc, query, where, orderBy, writeBatch, deleteDoc, Timestamp } from 'firebase/firestore';
-
+import { collection, getDocs, doc, addDoc, updateDoc, setDoc, getDoc, query, where, orderBy, writeBatch, Timestamp, limit, startAt } from 'firebase/firestore';
+import { cookies } from 'next/headers';
 import { summarizeCaseDocuments } from '@/ai/flows/summarize-case-documents';
 import type { SummarizeCaseDocumentsInput } from '@/ai/flows/summarize-case-documents';
 import { askChatbot } from '@/ai/flows/chatbot';
 import type { ChatbotInput } from '@/ai/flows/chatbot';
 import { estimateCaseCost } from '@/ai/flows/estimate-case-cost';
 import type { EstimateCaseCostInput, EstimateCaseCostOutput } from '@/ai/flows/estimate-case-cost';
-import { staticUserData, type CaseDocument, type Lawyer, type Message, type Client, type Case, type Appointment, type Invoice, type Conversation, type Notification } from './data';
+import type { CaseDocument, Lawyer, Message, Client, Case, Appointment, Invoice, Conversation, Notification } from './data';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
+const SESSION_COOKIE_NAME = 'user_session';
+
 // Helper function to convert Firestore Timestamps to strings
 const convertTimestamps = (data: any) => {
-    for (const key in data) {
-        if (data[key] instanceof Timestamp) {
-            data[key] = data[key].toDate().toISOString();
-        } else if (typeof data[key] === 'object' && data[key] !== null) {
-            convertTimestamps(data[key]);
+    if (!data) return data;
+    const newData = Array.isArray(data) ? [...data] : { ...data };
+    for (const key in newData) {
+        const value = (newData as any)[key];
+        if (value instanceof Timestamp) {
+            (newData as any)[key] = value.toDate().toISOString();
+        } else if (typeof value === 'object' && value !== null) {
+            (newData as any)[key] = convertTimestamps(value);
         }
     }
-    return data;
+    return newData;
 };
+
+// --- AUTH / SESSION ACTIONS ---
+
+export async function getCurrentUser() {
+    const session = cookies().get(SESSION_COOKIE_NAME)?.value;
+    if (!session) return null;
+    try {
+        const { id, role } = JSON.parse(session);
+        const collectionName = role === 'lawyer' ? 'users' : 'clients';
+        const user = await getDocument(collectionName, id);
+        return { ...user, role } as (Client & { role: 'client' }) | (Lawyer & { role: 'lawyer' });
+    } catch (error) {
+        return null;
+    }
+}
+
+async function createSession(user: { id: string, role: 'client' | 'lawyer' }) {
+    cookies().set(SESSION_COOKIE_NAME, JSON.stringify(user), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24 * 7, // One week
+        path: '/',
+    });
+}
+
+export async function clearSession() {
+    cookies().set(SESSION_COOKIE_NAME, '', { expires: new Date(0) });
+}
+
+export async function registerUser(userData: { name: string; email: string; role: 'client' | 'lawyer' }) {
+    try {
+        const { name, email, role } = userData;
+        const collectionName = role === 'lawyer' ? 'users' : 'clients';
+        const existingUserQuery = query(collection(db, collectionName), where("email", "==", email));
+        const existingUserSnap = await getDocs(existingUserQuery);
+
+        if (!existingUserSnap.empty) {
+            return { success: false, error: 'Cet email est déjà utilisé pour ce rôle.' };
+        }
+
+        const newUserRef = doc(collection(db, collectionName));
+        const newUser: Omit<Client | Lawyer, 'id'> = {
+            name,
+            email,
+            avatar: `https://placehold.co/100x100.png?text=${name.charAt(0)}`,
+            ...(role === 'lawyer' && { role: 'Avocat', specialty: 'Droit Général' }),
+        };
+
+        await setDoc(newUserRef, newUser);
+        await createSession({ id: newUserRef.id, role });
+
+        return { success: true, userId: newUserRef.id, role };
+    } catch (error) {
+        console.error("Error registering user: ", error);
+        return { success: false, error: 'Failed to create account.' };
+    }
+}
+
+export async function loginUserByEmail(credentials: { email: string; password?: string; role: 'client' | 'lawyer' }) {
+    try {
+        const { email, role } = credentials;
+        const collectionName = role === 'lawyer' ? 'users' : 'clients';
+        const q = query(collection(db, collectionName), where("email", "==", email));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            return { success: false, error: "Aucun compte trouvé avec cet email pour le rôle sélectionné." };
+        }
+
+        const userDoc = querySnapshot.docs[0];
+        const user = { id: userDoc.id, ...userDoc.data() };
+
+        await createSession({ id: user.id, role });
+        return { success: true, role };
+
+    } catch (error) {
+        console.error("Login error: ", error);
+        return { success: false, error: "Une erreur est survenue lors de la connexion." };
+    }
+}
+
+export async function quickLogin(role: 'lawyer' | 'client') {
+    try {
+        const collectionName = role === 'lawyer' ? 'users' : 'clients';
+        const q = query(collection(db, collectionName), limit(1));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+             return { success: false, error: `Aucun utilisateur trouvé pour le rôle : ${role}` };
+        }
+
+        const userDoc = querySnapshot.docs[0];
+        await createSession({ id: userDoc.id, role });
+        
+        return { success: true, role };
+    } catch (error) {
+        console.error("Quick login error:", error);
+        return { success: false, error: "Erreur de connexion rapide." };
+    }
+}
 
 
 // Generic function to fetch a collection
-async function getCollection<T>(collectionName: string): Promise<T[]> {
-    const querySnapshot = await getDocs(collection(db, collectionName));
+async function getCollection<T>(collectionName: string, q?: any): Promise<T[]> {
+    const querySnapshot = await getDocs(q || collection(db, collectionName));
     return querySnapshot.docs.map(doc => convertTimestamps({ id: doc.id, ...doc.data() } as any));
 }
 
 // Generic function to fetch a document by ID
 async function getDocument<T>(collectionName: string, id: string): Promise<T | null> {
+    if (!id) return null;
     const docRef = doc(db, collectionName, id);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
@@ -47,8 +153,7 @@ async function getDocument<T>(collectionName: string, id: string): Promise<T | n
 export async function getCases(): Promise<Case[]> {
     const casesCollection = collection(db, 'cases');
     const q = query(casesCollection, orderBy('submittedDate', 'desc'));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => convertTimestamps({ id: doc.id, ...doc.data() } as any));
+    return getCollection<Case>('cases', q);
 }
 
 export async function getCaseById(id: string): Promise<Case | null> {
@@ -56,30 +161,29 @@ export async function getCaseById(id: string): Promise<Case | null> {
 }
 
 export async function getClientCases(clientId: string): Promise<Case[]> {
+    if (!clientId) return [];
     const casesCollection = collection(db, 'cases');
     const q = query(casesCollection, where('clientId', '==', clientId), orderBy('submittedDate', 'desc'));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => convertTimestamps({ id: doc.id, ...doc.data() } as any));
+    return getCollection<Case>('cases', q);
 }
 
 export async function addCase(newCaseData: { clientName: string; caseType: Case['caseType']; description: string }) {
     try {
         const clientsCollection = collection(db, 'clients');
-        const q = query(clientsCollection, where("name", "==", newCaseData.clientName));
+        const q = query(clientsCollection, where("name", "==", newCaseData.clientName), limit(1));
         const querySnapshot = await getDocs(q);
         
         let client: Client;
 
         if (querySnapshot.empty) {
             const newClientRef = doc(collection(db, 'clients'));
-            const newClientData: Client = {
-                id: newClientRef.id,
+            const newClientData: Omit<Client, 'id'> = {
                 name: newCaseData.clientName,
                 email: `${newCaseData.clientName.toLowerCase().replace(/\s/g, '.')}@example.com`,
                 avatar: `https://placehold.co/100x100.png?text=${newCaseData.clientName.charAt(0)}`
             };
             await setDoc(newClientRef, newClientData);
-            client = newClientData;
+            client = { id: newClientRef.id, ...newClientData };
         } else {
             const clientDoc = querySnapshot.docs[0];
             client = { id: clientDoc.id, ...clientDoc.data() } as Client;
@@ -116,7 +220,10 @@ export async function addCase(newCaseData: { clientName: string; caseType: Case[
 }
 
 export async function addClientCase(newCase: { caseType: Case['caseType']; description: string }) {
-    const currentUser = staticUserData.currentUser;
+    const currentUser = await getCurrentUser();
+    if (!currentUser || currentUser.role !== 'client') {
+        return { success: false, error: "Utilisateur non autorisé." };
+    }
     const currentDate = new Date();
 
     let caseEstimate: EstimateCaseCostOutput | null = null;
@@ -149,26 +256,32 @@ export async function addClientCase(newCase: { caseType: Case['caseType']; descr
     
     revalidatePath('/client/cases');
     revalidatePath(`/client/cases/${docRef.id}`);
-
-    return { success: true, newCaseId: docRef.id };
+    
+    redirect(`/client/cases/${docRef.id}`);
+    // return { success: true, newCaseId: docRef.id };
 }
 
 
 export async function updateCaseStatus(caseId: string, newStatus: Case['status']) {
+    const currentUser = await getCurrentUser();
+    if (!currentUser || currentUser.role !== 'lawyer') {
+        return { success: false, error: "Non autorisé." };
+    }
     try {
         const caseRef = doc(db, "cases", caseId);
+        const caseItemSnap = await getDoc(caseRef);
+        if (!caseItemSnap.exists()) return { success: false, error: "Affaire non trouvée."};
+        const caseItem = caseItemSnap.data();
+
         await updateDoc(caseRef, {
             status: newStatus,
             lastUpdate: new Date().toISOString()
         });
-        
-        const caseItem = await getDoc(caseRef);
-        if (!caseItem.exists()) return { success: false, error: "Case not found."};
 
         if (newStatus === 'Clôturé') {
             await addDoc(collection(db, "notifications"), {
-                 userId: caseItem.data().clientId,
-                 message: `Votre affaire ${caseItem.data().caseNumber} a été clôturée.`,
+                 userId: caseItem.clientId,
+                 message: `Votre affaire ${caseItem.caseNumber} a été clôturée.`,
                  read: false,
                  date: new Date().toISOString()
             });
@@ -218,6 +331,10 @@ export async function getAppointments(): Promise<(Appointment & { clientName: st
 
 
 export async function requestAppointment(appointmentData: { caseId: string, date: string, time: string, notes: string }) {
+     const currentUser = await getCurrentUser();
+    if (!currentUser || currentUser.role !== 'client') {
+        return { success: false, error: "Non autorisé." };
+    }
     try {
         const caseItem = await getCaseById(appointmentData.caseId);
         if (!caseItem) return { success: false, error: "Affaire non trouvée" };
@@ -341,11 +458,15 @@ export async function getClientProfile(id: string): Promise<Client | null> {
 }
 
 export async function updateLawyerProfile(updatedLawyer: Omit<Lawyer, 'id'>) {
+    const currentUser = await getCurrentUser();
+    if (!currentUser || currentUser.role !== 'lawyer') {
+        return { success: false, error: "Non autorisé." };
+    }
     try {
-        const lawyerId = staticUserData.lawyer.id;
-        const lawyerRef = doc(db, "users", lawyerId);
+        const lawyerRef = doc(db, "users", currentUser.id);
         await setDoc(lawyerRef, updatedLawyer, { merge: true });
         revalidatePath('/dashboard/profile');
+        revalidatePath('/dashboard/layout');
         return { success: true }
     } catch(error) {
         console.error(error);
@@ -354,13 +475,16 @@ export async function updateLawyerProfile(updatedLawyer: Omit<Lawyer, 'id'>) {
 }
 
 export async function updateClientProfile(updatedClient: Omit<Client, 'id'>) {
+    const currentUser = await getCurrentUser();
+    if (!currentUser || currentUser.role !== 'client') {
+        return { success: false, error: "Non autorisé." };
+    }
     try {
-        const clientId = staticUserData.currentUser.id;
-        const clientRef = doc(db, "clients", clientId);
+        const clientRef = doc(db, "clients", currentUser.id);
         await setDoc(clientRef, updatedClient, { merge: true });
 
         // Update name in cases
-        const casesQuery = query(collection(db, 'cases'), where('clientId', '==', clientId));
+        const casesQuery = query(collection(db, 'cases'), where('clientId', '==', currentUser.id));
         const casesSnapshot = await getDocs(casesQuery);
         const batch = writeBatch(db);
         casesSnapshot.docs.forEach(caseDoc => {
@@ -382,10 +506,10 @@ export async function getConversations(): Promise<Conversation[]> {
     return getCollection<Conversation>('conversations');
 }
 export async function getClientConversations(clientId: string): Promise<Conversation[]> {
-     const convosCollection = collection(db, 'conversations');
+    if (!clientId) return [];
+    const convosCollection = collection(db, 'conversations');
     const q = query(convosCollection, where('clientId', '==', clientId));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => convertTimestamps({ id: doc.id, ...doc.data() } as any));
+    return getCollection<Conversation>('conversations', q);
 }
 
 export async function sendMessage(conversationId: string, content: string, senderId: string) {
@@ -419,10 +543,10 @@ export async function sendMessage(conversationId: string, content: string, sende
 
 // --- Invoice Actions ---
 export async function getClientInvoices(clientId: string): Promise<Invoice[]> {
+    if (!clientId) return [];
     const invoicesCollection = collection(db, 'invoices');
     const q = query(invoicesCollection, where('clientId', '==', clientId));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => convertTimestamps({ id: doc.id, ...doc.data() } as any));
+    return getCollection<Invoice>('invoices', q);
 }
 
 export async function makePayment(invoiceId: string) {
@@ -434,15 +558,20 @@ export async function makePayment(invoiceId: string) {
         }
         
         await updateDoc(invoiceRef, { status: 'Payée' });
-        const invoice = invoiceSnap.data();
+        const invoice = invoiceSnap.data() as Invoice;
         
-        await addDoc(collection(db, "notifications"), {
-            userId: staticUserData.lawyer.id,
-            message: `Paiement de ${invoice.amount.toFixed(2)}€ reçu pour la facture ${invoice.number} (${invoice.caseNumber}).`,
-            read: false,
-            date: new Date().toISOString()
-        });
-
+        const lawyerQuery = query(collection(db, 'users'), limit(1));
+        const lawyerSnap = await getDocs(lawyerQuery);
+        if(!lawyerSnap.empty) {
+            const lawyerId = lawyerSnap.docs[0].id;
+            await addDoc(collection(db, "notifications"), {
+                userId: lawyerId,
+                message: `Paiement de ${invoice.amount.toFixed(2)}€ reçu pour la facture ${invoice.number} (${invoice.caseNumber}).`,
+                read: false,
+                date: new Date().toISOString()
+            });
+        }
+        
         revalidatePath('/client/payments');
         revalidatePath('/dashboard/layout');
         return { success: true };
@@ -455,10 +584,10 @@ export async function makePayment(invoiceId: string) {
 
 // --- Notification Actions ---
 export async function getNotifications(userId: string): Promise<Notification[]> {
+    if (!userId) return [];
     const notifsCollection = collection(db, 'notifications');
     const q = query(notifsCollection, where('userId', '==', userId), orderBy('date', 'desc'));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => convertTimestamps({ id: doc.id, ...doc.data() } as any));
+    return getCollection<Notification>('notifications', q);
 }
 
 export async function markNotificationAsRead(notificationId: string) {
