@@ -4,7 +4,6 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import wav from 'wav';
 
 const SummarizeCaseDocumentsInputSchema = z.object({
   documentDataUri: z
@@ -32,7 +31,7 @@ const summarizeCaseDocumentsPrompt = ai.definePrompt({
   output: {schema: SummarizeCaseDocumentsOutputSchema},
   prompt: `You are a lawyer specializing in quickly understanding case documents.
 
-You will be provided with a case document, and you will summarize the key information in the document.
+You will be provided with a case document. Extract and summarize the key textual information within it. If the document is an image, describe the relevant information. If the document format is not suitable for text extraction (like a spreadsheet), state that the format is unsupported.
 
 Document: {{media url=documentDataUri}}`,
 });
