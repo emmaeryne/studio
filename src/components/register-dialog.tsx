@@ -1,4 +1,3 @@
-
 // A dialog for registering a new user (client or lawyer)
 'use client';
 
@@ -78,6 +77,7 @@ export function RegisterDialog({ children }: { children: React.ReactNode }) {
       });
     } finally {
       setIsLoading(false);
+      setOpen(false);
     }
   };
 
@@ -93,24 +93,22 @@ export function RegisterDialog({ children }: { children: React.ReactNode }) {
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Nom complet
-              </Label>
-              <Input id="name" name="name" className="col-span-3" required />
+            <div className="space-y-2">
+              <Label htmlFor="name">Nom d'utilisateur</Label>
+              <Input id="name" name="name" required />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
-                Email
-              </Label>
-              <Input id="email" name="email" type="email" className="col-span-3" required />
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" name="email" type="email" required />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="role" className="text-right">
-                Rôle
-              </Label>
+             <div className="space-y-2">
+              <Label htmlFor="password">Mot de passe</Label>
+              <Input id="password" name="password" type="password" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="role">Rôle</Label>
               <Select name="role" required value={role} onValueChange={(value) => setRole(value as 'client' | 'lawyer')}>
-                <SelectTrigger className="col-span-3">
+                <SelectTrigger id="role">
                   <SelectValue placeholder="Sélectionner un rôle" />
                 </SelectTrigger>
                 <SelectContent>
