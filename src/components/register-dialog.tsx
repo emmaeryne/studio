@@ -60,7 +60,14 @@ export function RegisterDialog({ children }: { children: React.ReactNode }) {
           title: 'Compte créé',
           description: 'Votre compte a été créé avec succès. Vous êtes maintenant connecté.',
         });
-        router.push(result.role === 'lawyer' ? '/dashboard' : '/client/dashboard');
+        
+        // Explicit redirection based on the role returned by the server action
+        if (result.role === 'lawyer') {
+          router.push('/dashboard');
+        } else {
+          router.push('/client/dashboard');
+        }
+
       } else {
         toast({
             variant: 'destructive',
