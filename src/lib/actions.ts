@@ -81,12 +81,19 @@ export async function registerUser(userData: { name: string; email: string; role
         await setDoc(newUserRef, newUser);
         await createSession({ id: newUserRef.id, role });
 
-        return { success: true, userId: newUserRef.id, role };
     } catch (error) {
         console.error("Error registering user: ", error);
         return { success: false, error: 'Failed to create account.' };
     }
+    
+    // Server-side redirect after successful registration
+    if (userData.role === 'lawyer') {
+        redirect('/dashboard');
+    } else {
+        redirect('/client/dashboard');
+    }
 }
+
 
 export async function loginUserByEmail(credentials: { email: string; password?: string; role: 'client' | 'lawyer' }) {
     try {

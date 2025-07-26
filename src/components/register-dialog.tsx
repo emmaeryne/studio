@@ -1,3 +1,4 @@
+
 // A dialog for registering a new user (client or lawyer)
 'use client';
 
@@ -54,29 +55,11 @@ export function RegisterDialog({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const result = await registerUser(userData);
-      if (result.success && result.role) {
-        toast({
-          title: 'Compte créé',
-          description: 'Votre compte a été créé avec succès. Vous êtes maintenant connecté.',
-        });
-        
-        // Explicit redirection based on the role returned by the server action
-        if (result.role === 'lawyer') {
-          router.push('/dashboard');
-        } else {
-          router.push('/client/dashboard');
-        }
-
-      } else {
-        toast({
-            variant: 'destructive',
-            title: 'Erreur de création',
-            description: result.error || "Impossible de créer le compte.",
-        });
-      }
+      // The server action will handle the redirect
+      await registerUser(userData);
     } catch (error) {
-      console.error(error);
+      // Errors (like duplicate email) will be thrown by the server action
+      // and caught here. The redirect will not happen in case of an error.
       toast({
         variant: 'destructive',
         title: 'Erreur',
@@ -84,7 +67,7 @@ export function RegisterDialog({ children }: { children: React.ReactNode }) {
       });
     } finally {
       setIsLoading(false);
-      setOpen(false);
+      // We don't close the dialog on success because the page will be redirected.
     }
   };
 
