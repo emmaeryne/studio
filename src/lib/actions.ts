@@ -236,7 +236,7 @@ export async function addClientCase(newCase: { caseType: Case['caseType']; descr
     const casesCountSnapshot = await getDocs(collection(db, 'cases'));
     const nextCaseNumber = `CASE-${String(casesCountSnapshot.size + 1).padStart(3, '0')}`;
 
-    const newCaseData: Omit<Case, 'id'> = {
+    const newCaseData: Omit<Case, 'id' | '_estimate'> = {
         caseNumber: nextCaseNumber,
         clientName: currentUser.name,
         clientId: currentUser.id,
@@ -249,10 +249,9 @@ export async function addClientCase(newCase: { caseType: Case['caseType']; descr
         documents: [],
         appointments: [],
         keyDeadlines: [],
-        ...(caseEstimate && { _estimate: caseEstimate }),
     };
     
-    const docRef = await addDoc(collection(db, 'cases'), newCaseData);
+    const docRef = await addDoc(collection(db, 'cases'), { ...newCaseData, ...(caseEstimate && { _estimate: caseEstimate }) });
     
     revalidatePath('/client/cases');
     revalidatePath(`/client/cases/${docRef.id}`);

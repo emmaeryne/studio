@@ -45,7 +45,7 @@ export default function LoginPage() {
   const handleQuickLogin = async (role: "lawyer" | "client") => {
     setIsLoading(true);
     const result = await quickLogin(role);
-    if (result.success) {
+    if (result.success && result.role) {
       toast({
         title: "Connexion réussie",
         description: `Connexion en tant que ${role === "lawyer" ? "avocat" : "client"}.`,
@@ -88,7 +88,8 @@ export default function LoginPage() {
         title: "Erreur",
         description: errorMessage,
       });
-      setIsLoading(false);
+    } finally {
+        setIsLoading(false);
     }
   };
 
