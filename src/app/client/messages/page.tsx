@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { sendMessage, getClientConversations, getLawyerProfile, getCurrentUser } from "@/lib/actions";
+import { sendMessage, getClientConversations, getLawyerProfile, getCurrentUser, markConversationAsRead } from "@/lib/actions";
 import { MessageList } from "@/components/MessageList";
 import { MessageView } from "@/components/MessageView";
 import { type Conversation, type Client, type Lawyer } from "@/lib/data";
@@ -35,12 +35,27 @@ export default function ClientMessagesPage() {
             setConversations(clientConversations);
 
             if (clientConversations.length > 0) {
-                setSelectedConversationId(clientConversations[0].id);
+                const firstConvoId = clientConversations[0].id;
+                setSelectedConversationId(firstConvoId);
+                if (clientConversations[0].unreadCount > 0) {
+                    await markConversationAsRead(firstConvoId, user.id);
+                }
             }
         }
     };
     fetchData();
   }, []);
+
+  const handleSelectConversation = async (convoId: string) => {
+      setSelectedConversationId(convoId);
+      const conversation = conversations.find(c => c.id === convoId);
+      if (conversation && conversation.unreadCount > 0 && clientUser) {
+          const success = await markConversationAsRead(convoId, clientUser.id);
+          if (success) {
+              setConversations(prev => prev.map(c => c.id === convoId ? {...c, unreadCount: 0} : c));
+          }
+      }
+  }
 
 
   const selectedConversation = conversations.find(c => c.id === selectedConversationId);
@@ -84,7 +99,7 @@ export default function ClientMessagesPage() {
         viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
       }
     }
-  }, [selectedConversation?.messages.length]);
+  }, [selectedConversation?.id, selectedConversation?.messages.length]);
   
   if (!clientUser) {
       return <div className="text-center p-8">Chargement de votre profil...</div>
@@ -125,7 +140,7 @@ export default function ClientMessagesPage() {
             <MessageList
               conversations={conversations}
               selectedConversationId={selectedConversationId}
-              onSelectConversation={setSelectedConversationId}
+              onSelectConversation={handleSelectConversation}
               currentUserId={clientUser.id}
               searchQuery={searchQuery}
             />

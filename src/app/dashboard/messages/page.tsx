@@ -78,7 +78,7 @@ export default function LawyerMessagesPage() {
         viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
       }
     }
-  }, [selectedConversation?.messages.length]);
+  }, [selectedConversation?.id, selectedConversation?.messages.length]);
 
   if (!lawyer) {
       return <div className="text-center p-8">Chargement de votre profil...</div>;

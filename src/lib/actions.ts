@@ -69,10 +69,10 @@ export async function registerUser(userData: { name: string; email: string; role
     try {
         const { name, email, role } = userData;
         const collectionName = role === 'lawyer' ? 'users' : 'clients';
-        const existingUserQuery = query(collection(db, collectionName), where("email", "==", email));
-        const existingUserSnap = await getDocs(existingUserQuery);
+        const q = query(collection(db, collectionName), where("email", "==", email));
+        const querySnapshot = await getDocs(q);
 
-        if (!existingUserSnap.empty) {
+        if (!querySnapshot.empty) {
             return { success: false, error: 'Cet email est déjà utilisé pour ce rôle.' };
         }
 
@@ -86,11 +86,11 @@ export async function registerUser(userData: { name: string; email: string; role
 
         await setDoc(newUserRef, newUser);
         await createSession({ id: newUserRef.id, role });
-        return { success: true, role: role };
+        redirect(role === 'lawyer' ? '/dashboard' : '/client/dashboard');
 
     } catch (error) {
         console.error("Error registering user: ", error);
-        return { success: false, error: 'Failed to create account.' };
+        return { success: false, error: 'La création du compte a échoué.' };
     }
 }
 
@@ -542,13 +542,39 @@ export async function sendMessage(conversationId: string, content: string, sende
 
         revalidatePath('/dashboard/messages');
         revalidatePath('/client/messages');
-        return { success: true, newMessage };
+        return { success: true, newMessage: convertTimestamps(newMessage) };
 
     } catch(error) {
         console.error(error);
         return { success: false, error: "Failed to send message" };
     }
 }
+
+export async function markConversationAsRead(conversationId: string, currentUserId: string): Promise<boolean> {
+    try {
+        const conversationRef = doc(db, 'conversations', conversationId);
+        const conversationSnap = await getDoc(conversationRef);
+
+        if (conversationSnap.exists()) {
+            const conversationData = conversationSnap.data() as Conversation;
+            
+            // We only care about the client's unread count.
+            if (currentUserId === conversationData.clientId) {
+                await updateDoc(conversationRef, {
+                    unreadCount: 0
+                });
+                revalidatePath(`/client/layout`);
+                revalidatePath(`/client/messages`);
+                return true;
+            }
+        }
+        return false;
+    } catch (error) {
+        console.error("Error marking conversation as read:", error);
+        return false;
+    }
+}
+
 
 // --- Invoice Actions ---
 export async function getClientInvoices(clientId: string): Promise<Invoice[]> {
