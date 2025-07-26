@@ -3,15 +3,14 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
-const firebaseConfig = 
-// TODO: Fill in your Firebase project configuration object here.
-{
-  "apiKey": "AIzaSyC2Y4g2b-pS0TjY9qjB2s1a7F3z6e8x4Dc",
-  "authDomain": "my-project-id.firebaseapp.com",
-  "projectId": "my-project-id",
-  "storageBucket": "my-project-id.appspot.com",
-  "messagingSenderId": "4815162342",
-  "appId": "1:4815162342:web:1a2b3c4d5e6f7g8h9i0j"
+const firebaseConfig = {
+  "projectId": "liaison-lgale",
+  "appId": "1:1097327386727:web:3433145bd16a319c22f4c2",
+  "storageBucket": "liaison-lgale.firebasestorage.app",
+  "apiKey": "AIzaSyCzDvuLKX2jD__W05sg9hf2DzR6aaeDPro",
+  "authDomain": "liaison-lgale.firebaseapp.com",
+  "measurementId": "",
+  "messagingSenderId": "1097327386727"
 };
 
 // Initialize Firebase
@@ -25,7 +24,3 @@ if (!getApps().length) {
 const db = getFirestore(app);
 
 export { db };
-
-
-
-    
