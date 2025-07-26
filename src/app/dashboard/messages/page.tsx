@@ -7,15 +7,16 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { sendMessage, getConversations, getCurrentUser } from "@/lib/actions";
+import { sendMessage, getConversations, getCurrentUser, getAllClients } from "@/lib/actions";
 import { MessageList } from "@/components/MessageList";
 import { MessageView } from "@/components/MessageView";
-import { type Conversation, type Lawyer } from "@/lib/data";
+import { type Conversation, type Lawyer, type Client } from "@/lib/data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function LawyerMessagesPage() {
   const [lawyer, setLawyer] = useState<Lawyer | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [allClients, setAllClients] = useState<Client[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | undefined>();
   const [newMessage, setNewMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -27,11 +28,33 @@ export default function LawyerMessagesPage() {
         const user = await getCurrentUser();
         if (user && user.role === 'lawyer') {
             setLawyer(user as Lawyer);
-            const allConversations = await getConversations();
-            setConversations(allConversations);
+            const [allConversations, clients] = await Promise.all([
+                getConversations(),
+                getAllClients()
+            ]);
 
-            if (allConversations.length > 0) {
-                setSelectedConversationId(allConversations[0].id);
+            const mergedConversations = clients.map(client => {
+                const existingConvo = allConversations.find(c => c.clientId === client.id);
+                if (existingConvo) {
+                    return existingConvo;
+                }
+                // Create a placeholder conversation for clients without one
+                return {
+                    id: `client-${client.id}`, // Temporary unique ID
+                    caseId: '',
+                    caseNumber: 'N/A',
+                    clientId: client.id,
+                    clientName: client.name,
+                    clientAvatar: client.avatar,
+                    unreadCount: 0,
+                    messages: [],
+                };
+            });
+            
+            setConversations(mergedConversations);
+
+            if (mergedConversations.length > 0) {
+                setSelectedConversationId(mergedConversations[0].id);
             }
         }
     }
@@ -45,7 +68,10 @@ export default function LawyerMessagesPage() {
     if (!newMessage.trim() || !selectedConversationId || !lawyer) return;
 
     try {
-      const sentMessage = await sendMessage(selectedConversationId, newMessage, lawyer.id);
+      const isPlaceholder = selectedConversationId.startsWith('client-');
+      const conversationToUse = isPlaceholder ? undefined : selectedConversationId;
+
+      const sentMessage = await sendMessage(conversationToUse, newMessage, lawyer.id, selectedConversation?.clientId);
 
       if (sentMessage.success && sentMessage.newMessage) {
          setConversations(prev => 
@@ -53,11 +79,15 @@ export default function LawyerMessagesPage() {
               c.id === selectedConversationId 
                 ? { 
                     ...c, 
+                    id: sentMessage.conversationId || c.id,
                     messages: [...c.messages, sentMessage.newMessage!],
                   } 
                 : c
             )
           );
+          if (isPlaceholder && sentMessage.conversationId) {
+            setSelectedConversationId(sentMessage.conversationId);
+          }
           setNewMessage("");
       } else {
         throw new Error(sentMessage.error || "Failed to send message")
@@ -88,9 +118,9 @@ export default function LawyerMessagesPage() {
     return (
         <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 h-full flex flex-col items-center justify-center">
             <Card className="p-8 text-center">
-                <CardTitle className="font-headline text-xl">Aucune conversation</CardTitle>
+                <CardTitle className="font-headline text-xl">Aucun Client</CardTitle>
                 <CardContent className="pt-4">
-                    <p className="text-muted-foreground">Aucune conversation n'a encore été initiée. Une conversation sera créée pour chaque nouvelle affaire.</p>
+                    <p className="text-muted-foreground">Aucun client n'est encore enregistré dans la base de données.</p>
                 </CardContent>
             </Card>
         </div>

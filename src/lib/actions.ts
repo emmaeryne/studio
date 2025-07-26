@@ -178,17 +178,25 @@ export async function getClientCases(clientId: string): Promise<Case[]> {
 
 // Helper function to create a conversation
 async function createConversation(caseData: { id: string, caseNumber: string, clientId: string, clientName: string, clientAvatar: string }) {
-    const newConversation: Omit<Conversation, 'id'> = {
-        caseId: caseData.id,
-        caseNumber: caseData.caseNumber,
-        clientId: caseData.clientId,
-        clientName: caseData.clientName,
-        clientAvatar: caseData.clientAvatar,
-        unreadCount: 0,
-        messages: [],
-    };
-    await addDoc(collection(db, 'conversations'), newConversation);
+    // Check if a conversation for this case already exists to avoid duplicates
+    const convosCollection = collection(db, 'conversations');
+    const q = query(convosCollection, where('caseId', '==', caseData.id));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+        const newConversation: Omit<Conversation, 'id'> = {
+            caseId: caseData.id,
+            caseNumber: caseData.caseNumber,
+            clientId: caseData.clientId,
+            clientName: caseData.clientName,
+            clientAvatar: caseData.clientAvatar,
+            unreadCount: 0,
+            messages: [],
+        };
+        await addDoc(collection(db, 'conversations'), newConversation);
+    }
 }
+
 
 export async function addCase(newCaseData: { clientName: string; caseType: Case['caseType']; description: string }) {
     try {
@@ -489,6 +497,10 @@ export async function getLawyerProfile(): Promise<Lawyer | null> {
     return getDocument<Lawyer>('users', snapshot.docs[0].id);
 }
 
+export async function getAllClients(): Promise<Client[]> {
+    return getCollection<Client>('clients');
+}
+
 export async function getClientProfile(id: string): Promise<Client | null> {
     return getDocument<Client>('clients', id);
 }
@@ -548,9 +560,34 @@ export async function getClientConversations(clientId: string): Promise<Conversa
     return getCollection<Conversation>('conversations', q);
 }
 
-export async function sendMessage(conversationId: string, content: string, senderId: string) {
+export async function sendMessage(conversationId: string | undefined, content: string, senderId: string, clientId?: string) {
     try {
-        const conversationRef = doc(db, "conversations", conversationId);
+        let conversationRef;
+        let finalConversationId = conversationId;
+
+        if (!conversationId) {
+            // This is a new conversation initiated by the lawyer.
+            if (!clientId) return { success: false, error: "Client ID is required to start a new conversation." };
+            
+            const client = await getDocument<Client>('clients', clientId);
+            if (!client) return { success: false, error: "Client not found." };
+            
+            const newConversationData: Omit<Conversation, 'id'> = {
+                caseId: '', // No specific case yet
+                caseNumber: 'Discussion générale',
+                clientId: client.id,
+                clientName: client.name,
+                clientAvatar: client.avatar,
+                unreadCount: 1, // Unread for the client
+                messages: [],
+            };
+            const newDocRef = await addDoc(collection(db, 'conversations'), newConversationData);
+            conversationRef = newDocRef;
+            finalConversationId = newDocRef.id;
+        } else {
+            conversationRef = doc(db, "conversations", conversationId);
+        }
+
         const conversationSnap = await getDoc(conversationRef);
         if(!conversationSnap.exists()) return { success: false, error: "Conversation not found" };
         
@@ -565,7 +602,8 @@ export async function sendMessage(conversationId: string, content: string, sende
         };
         
         const existingMessages = conversationData.messages || [];
-        const unreadCount = senderId === conversationData.clientId ? conversationData.unreadCount : conversationData.unreadCount + 1;
+        const isClientSender = senderId === conversationData.clientId;
+        const unreadCount = isClientSender ? conversationData.unreadCount : conversationData.unreadCount + 1;
 
         await updateDoc(conversationRef, {
             messages: [...existingMessages, newMessage],
@@ -574,13 +612,14 @@ export async function sendMessage(conversationId: string, content: string, sende
 
         revalidatePath('/dashboard/messages');
         revalidatePath('/client/messages');
-        return { success: true, newMessage: convertTimestamps(newMessage) };
+        return { success: true, newMessage: convertTimestamps(newMessage), conversationId: finalConversationId };
 
     } catch(error) {
         console.error(error);
         return { success: false, error: "Failed to send message" };
     }
 }
+
 
 export async function markConversationAsRead(conversationId: string, currentUserId: string): Promise<boolean> {
     try {
