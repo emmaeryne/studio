@@ -37,6 +37,8 @@ export type Case = {
   appointments: Omit<Appointment, 'caseId' | 'clientName'>[];
   keyDeadlines: Deadline[];
   _estimate?: CaseCostEstimate; // Temporary field for estimate
+  totalCost?: number;
+  firstInstallment?: number;
 };
 
 export type CaseCostEstimate = {

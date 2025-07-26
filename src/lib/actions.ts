@@ -74,7 +74,7 @@ export async function registerUser(userData: { name: string; email: string; role
         const querySnapshot = await getDocs(q);
 
         if (!querySnapshot.empty) {
-            return { success: false, error: 'Cet email est déjà utilisé pour ce rôle.' };
+            throw new Error('Cet email est déjà utilisé pour ce rôle.');
         }
 
         const newUserRef = doc(collection(db, collectionName));
@@ -88,11 +88,20 @@ export async function registerUser(userData: { name: string; email: string; role
         await setDoc(newUserRef, newUser);
         await createSession({ id: newUserRef.id, role });
         
-        redirect(role === 'lawyer' ? '/dashboard' : '/client/dashboard');
-
     } catch (error) {
         console.error("Error registering user: ", error);
-        return { success: false, error: 'La création du compte a échoué.' };
+        // Re-throw the error to be caught by the client-side form handler
+        if (error instanceof Error) {
+            throw error;
+        }
+        throw new Error("La création du compte a échoué.");
+    }
+
+    // Redirect after successful registration and session creation
+    if (userData.role === 'lawyer') {
+        redirect('/dashboard');
+    } else {
+        redirect('/client/dashboard');
     }
 }
 
@@ -298,8 +307,9 @@ export async function addClientCase(newCase: { caseType: Case['caseType']; descr
     revalidatePath('/client/cases');
     revalidatePath(`/client/cases/${docRef.id}`);
     revalidatePath('/client/messages');
+    revalidatePath('/client/dashboard');
     
-    redirect(`/client/cases/${docRef.id}`);
+    return { success: true, newCaseId: docRef.id };
 }
 
 
@@ -565,27 +575,40 @@ export async function sendMessage(conversationId: string | undefined, content: s
         let conversationRef;
         let finalConversationId = conversationId;
 
-        if (!conversationId) {
-            // This is a new conversation initiated by the lawyer.
-            if (!clientId) return { success: false, error: "Client ID is required to start a new conversation." };
+        // This block handles creating a new conversation from the lawyer's side
+        if (!conversationId && clientId) {
+             const client = await getDocument<Client>('clients', clientId);
+             if (!client) return { success: false, error: "Client not found." };
             
-            const client = await getDocument<Client>('clients', clientId);
-            if (!client) return { success: false, error: "Client not found." };
-            
-            const newConversationData: Omit<Conversation, 'id'> = {
-                caseId: '', // No specific case yet
-                caseNumber: 'Discussion générale',
-                clientId: client.id,
-                clientName: client.name,
-                clientAvatar: client.avatar,
-                unreadCount: 1, // Unread for the client
-                messages: [],
-            };
-            const newDocRef = await addDoc(collection(db, 'conversations'), newConversationData);
-            conversationRef = newDocRef;
-            finalConversationId = newDocRef.id;
-        } else {
+             // Check if a general conversation already exists
+             const existingConvoQuery = query(
+                collection(db, 'conversations'),
+                where('clientId', '==', clientId),
+                where('caseId', '==', '')
+             );
+             const existingConvoSnap = await getDocs(existingConvoQuery);
+
+             if(existingConvoSnap.empty) {
+                const newConversationData: Omit<Conversation, 'id'> = {
+                    caseId: '', // No specific case yet
+                    caseNumber: 'Discussion générale',
+                    clientId: client.id,
+                    clientName: client.name,
+                    clientAvatar: client.avatar,
+                    unreadCount: 1, // Unread for the client
+                    messages: [],
+                };
+                const newDocRef = await addDoc(collection(db, 'conversations'), newConversationData);
+                conversationRef = newDocRef;
+                finalConversationId = newDocRef.id;
+             } else {
+                 conversationRef = existingConvoSnap.docs[0].ref;
+                 finalConversationId = existingConvoSnap.docs[0].id;
+             }
+        } else if (conversationId) {
             conversationRef = doc(db, "conversations", conversationId);
+        } else {
+             return { success: false, error: "Conversation ID or Client ID is required." };
         }
 
         const conversationSnap = await getDoc(conversationRef);
@@ -603,11 +626,17 @@ export async function sendMessage(conversationId: string | undefined, content: s
         
         const existingMessages = conversationData.messages || [];
         const isClientSender = senderId === conversationData.clientId;
-        const unreadCount = isClientSender ? conversationData.unreadCount : conversationData.unreadCount + 1;
+        
+        let unreadCountUpdate = {};
+        // If client sends a message, it's unread for the lawyer (we don't track that here).
+        // If lawyer sends a message, it's unread for the client.
+        if (!isClientSender) {
+            unreadCountUpdate = { unreadCount: (conversationData.unreadCount || 0) + 1 }
+        }
 
         await updateDoc(conversationRef, {
             messages: [...existingMessages, newMessage],
-            unreadCount: unreadCount,
+            ...unreadCountUpdate
         });
 
         revalidatePath('/dashboard/messages');
@@ -651,9 +680,66 @@ export async function markConversationAsRead(conversationId: string, currentUser
 export async function getClientInvoices(clientId: string): Promise<Invoice[]> {
     if (!clientId) return [];
     const invoicesCollection = collection(db, 'invoices');
-    const q = query(invoicesCollection, where('clientId', '==', clientId));
+    const q = query(invoicesCollection, where('clientId', '==', clientId), orderBy('date', 'desc'));
     return getCollection<Invoice>('invoices', q);
 }
+
+export async function createInvoice(data: {caseId: string; totalCost: number; firstInstallment: number;}) {
+    const currentUser = await getCurrentUser();
+    if (!currentUser || currentUser.role !== 'lawyer') {
+        return { success: false, error: "Non autorisé." };
+    }
+
+    try {
+        const { caseId, totalCost, firstInstallment } = data;
+        const caseRef = doc(db, "cases", caseId);
+        const caseSnap = await getDoc(caseRef);
+
+        if (!caseSnap.exists()) {
+            return { success: false, error: "Affaire non trouvée." };
+        }
+        const caseData = caseSnap.data() as Case;
+
+        // 1. Update the case with financial info
+        await updateDoc(caseRef, { totalCost, firstInstallment });
+
+        // 2. Create the invoice for the first installment
+        const invoicesCollection = collection(db, 'invoices');
+        const invoicesCountSnapshot = await getDocs(invoicesCollection);
+        const nextInvoiceNumber = `FACT-${String(invoicesCountSnapshot.size + 1).padStart(4, '0')}`;
+
+        const newInvoice: Omit<Invoice, 'id'> = {
+            clientId: caseData.clientId,
+            caseId: caseId,
+            caseNumber: caseData.caseNumber,
+            number: nextInvoiceNumber,
+            date: new Date().toISOString(),
+            amount: firstInstallment,
+            status: 'En attente',
+        };
+
+        await addDoc(invoicesCollection, newInvoice);
+
+        // 3. Notify the client
+        await addDoc(collection(db, "notifications"), {
+            userId: caseData.clientId,
+            message: `Une nouvelle facture de ${firstInstallment.toFixed(2)}€ est disponible pour l'affaire ${caseData.caseNumber}.`,
+            read: false,
+            date: new Date().toISOString(),
+        });
+        
+        revalidatePath(`/dashboard/cases/${caseId}`);
+        revalidatePath(`/client/payments`);
+        revalidatePath(`/client/layout`);
+        
+        return { success: true };
+
+    } catch (error) {
+        console.error("Invoice creation error:", error);
+        return { success: false, error: "La création de la facture a échoué." };
+    }
+}
+
 
 export async function makePayment(invoiceId: string) {
     try {
@@ -720,6 +806,11 @@ export async function markAllNotificationsAsRead(userId: string) {
 
 export async function getSummary(input: SummarizeCaseDocumentsInput) {
   try {
+    const mimeType = input.documentDataUri.split(';')[0].split(':')[1];
+    if (!mimeType.startsWith('image/') && mimeType !== 'application/pdf') {
+        return { success: false, error: `Le format de fichier (${mimeType}) n'est pas supporté pour la synthèse. Veuillez utiliser une image ou un PDF.` };
+    }
+
     const result = await summarizeCaseDocuments(input);
     return { success: true, summary: result.summary };
   } catch (error) {

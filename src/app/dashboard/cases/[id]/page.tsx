@@ -25,6 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import type { Case } from "@/lib/data";
 import { useState, useEffect } from "react";
+import { FinancialManagement } from "@/components/financial-management";
 
 export default function CaseDetailPage() {
   const params = useParams();
@@ -33,11 +34,14 @@ export default function CaseDetailPage() {
   
   const [caseItem, setCaseItem] = useState<Case | null | undefined>(undefined);
   
+  const fetchCase = async () => {
+      if (id) {
+          const foundCase = await getCaseById(id);
+          setCaseItem(foundCase);
+      }
+  }
+
   useEffect(() => {
-    const fetchCase = async () => {
-        const foundCase = await getCaseById(id);
-        setCaseItem(foundCase);
-    }
     fetchCase();
   }, [id]);
 
@@ -136,6 +140,9 @@ export default function CaseDetailPage() {
               </div>
             </CardContent>
           </Card>
+          
+          <FinancialManagement caseItem={caseItem} onUpdate={fetchCase} />
+          
           <CaseDocumentUploader caseId={caseItem.id} />
         </div>
 
