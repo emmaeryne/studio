@@ -61,11 +61,7 @@ export function RegisterDialog({ children }: { children: React.ReactNode }) {
           description: 'Votre compte a été créé avec succès. Vous êtes maintenant connecté.',
         });
         setOpen(false);
-        if (result.role === 'lawyer') {
-            router.push('/dashboard');
-        } else {
-            router.push('/client/dashboard');
-        }
+        router.push(result.role === 'lawyer' ? '/dashboard' : '/client/dashboard');
       } else {
         // Display the validation error from the server in a toast
         toast({

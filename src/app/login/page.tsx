@@ -49,11 +49,7 @@ export default function LoginPage() {
         title: "Connexion réussie",
         description: `Connexion en tant que ${role === "lawyer" ? "avocat" : "client"}.`,
       });
-      if (result.role === "lawyer") {
-        router.push("/dashboard");
-      } else {
-        router.push("/client/dashboard");
-      }
+      router.push(result.role === "lawyer" ? "/dashboard" : "/client/dashboard");
     } else {
       toast({
         variant: "destructive",
@@ -77,11 +73,7 @@ export default function LoginPage() {
           title: "Connexion réussie",
           description: `Connexion en tant que ${role === "lawyer" ? "avocat" : "client"}.`,
         });
-        if (role === 'lawyer') {
-          router.push('/dashboard');
-        } else {
-          router.push('/client/dashboard');
-        }
+        router.push(role === 'lawyer' ? '/dashboard' : '/client/dashboard');
       } else {
         throw new Error(result.error);
       }

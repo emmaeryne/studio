@@ -96,7 +96,7 @@ export async function loginUserByEmail(credentials: { email: string; password?: 
         const querySnapshot = await getDocs(q);
 
         if (querySnapshot.empty) {
-            return { success: false, error: "Aucun compte trouvé avec cet email pour le rôle sélectionné." };
+            return { success: false, error: `Aucun compte trouvé pour l'email ${email}.` };
         }
 
         const userDoc = querySnapshot.docs[0];
@@ -258,7 +258,6 @@ export async function addClientCase(newCase: { caseType: Case['caseType']; descr
     revalidatePath(`/client/cases/${docRef.id}`);
     
     redirect(`/client/cases/${docRef.id}`);
-    // return { success: true, newCaseId: docRef.id };
 }
 
 
