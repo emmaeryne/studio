@@ -2,7 +2,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import Image from 'next/image';
 import {
   Card,
   CardContent,
@@ -105,7 +104,7 @@ export default function LoginPage() {
         >
           <Card className="shadow-lg border border-accent/20">
             <CardHeader className="text-center pt-6 items-center">
-               <Image src="https://placehold.co/200x100.png" alt="AvocatConnect Logo" width={200} height={100} priority data-ai-hint="logo" />
+               <img src="https://placehold.co/200x100.png" alt="AvocatConnect Logo" width={200} height={100} data-ai-hint="logo" />
               <CardTitle className="text-2xl md:text-3xl font-headline font-bold pt-4">
                 Bienvenue sur AvocatConnect
               </CardTitle>
