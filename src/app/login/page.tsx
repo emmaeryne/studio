@@ -276,7 +276,7 @@ export default function LoginPage() {
             </CardContent>
           </Card>
            <p className="text-center text-xs text-muted-foreground mt-4">
-              Développé avec passion
+              Developper par emnaawini
             </p>
         </motion.div>
       </div>
