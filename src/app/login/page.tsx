@@ -2,6 +2,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Image from 'next/image';
 import {
   Card,
   CardContent,
@@ -103,14 +104,15 @@ export default function LoginPage() {
           className="w-full max-w-md"
         >
           <Card className="shadow-lg border border-accent/20">
-            <CardHeader className="text-center pt-6">
-              <CardTitle className="text-2xl md:text-3xl font-headline font-bold">
+            <CardHeader className="text-center pt-6 items-center">
+               <Image src="/logo.png" alt="AvocatConnect Logo" width={200} height={100} priority />
+              <CardTitle className="text-2xl md:text-3xl font-headline font-bold pt-4">
                 Bienvenue sur AvocatConnect
               </CardTitle>
               <CardDescription className="text-muted-foreground">
                 Sélectionnez votre profil ou connectez-vous pour continuer.
               </CardDescription>
-              <hr className="mt-4 border-accent/20" />
+              <hr className="mt-4 border-accent/20 w-full" />
             </CardHeader>
             <CardContent className="grid gap-4">
               <AnimatePresence>
@@ -276,7 +278,7 @@ export default function LoginPage() {
             </CardContent>
           </Card>
            <p className="text-center text-xs text-muted-foreground mt-4">
-              Développé par Emma Awini
+              Développé par Emna Awini
             </p>
         </motion.div>
       </div>
