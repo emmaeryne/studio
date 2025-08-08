@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Calendar as ShadcnCalendar } from "@/components/ui/calendar";
 import {
   Card,
@@ -10,12 +11,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Edit } from "lucide-react";
+import { Check, Edit, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { updateAppointmentStatus } from "@/lib/actions";
+import { updateAppointmentStatus, getAppointments } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import {
   Select,
@@ -25,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
-import { appointments as initialAppointments, type Appointment } from "@/lib/data";
+import { type Appointment } from "@/lib/data";
 import { RescheduleAppointmentDialog } from "@/components/reschedule-appointment-dialog";
 
 
@@ -36,11 +37,22 @@ interface EventsByDate {
 
 export default function CalendarPage() {
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [appointments, setAppointments] = useState<(Appointment & { clientName: string })[]>(initialAppointments);
+  const [appointments, setAppointments] = useState<(Appointment & { clientName: string })[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [appointmentToReschedule, setAppointmentToReschedule] = useState<(Appointment & { clientName: string }) | null>(null);
   const { toast } = useToast();
   const router = useRouter();
+
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      setIsLoading(true);
+      const fetchedAppointments = await getAppointments();
+      setAppointments(fetchedAppointments);
+      setIsLoading(false);
+    }
+    fetchAppointments();
+  }, []);
 
   // Memoize filtered appointments to optimize performance
   const selectedDayAppointments = useMemo(() => {
@@ -91,7 +103,7 @@ export default function CalendarPage() {
   
   const handleRescheduleSuccess = (updatedAppointment: Appointment) => {
     setAppointments((prev) =>
-      prev.map((a) => (a.id === updatedAppointment.id ? { ...a, ...updatedAppointment, status: 'Reporté', clientName: a.clientName } : a))
+      prev.map((a) => (a.id === updatedAppointment.id ? { ...a, ...updatedAppointment, clientName: a.clientName } : a))
     );
      router.refresh(); 
   }
@@ -212,6 +224,11 @@ export default function CalendarPage() {
             </Select>
           </CardHeader>
           <CardContent className="space-y-4">
+             {isLoading ? (
+                <div className="flex justify-center items-center py-10">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+            ) : (
             <AnimatePresence>
               {selectedDayAppointments.length > 0 ? (
                 selectedDayAppointments.map((appointment) => (
@@ -288,6 +305,7 @@ export default function CalendarPage() {
                 </motion.p>
               )}
             </AnimatePresence>
+            )}
           </CardContent>
         </Card>
       </div>
