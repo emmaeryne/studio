@@ -10,7 +10,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "cap": "capacitor"
+    "cap": "capacitor",
+    "build:android": "npm run build && capacitor sync android"
   },
   "dependencies": {
     "@capacitor/android": "^6.1.0",
