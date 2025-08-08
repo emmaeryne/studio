@@ -1,14 +1,16 @@
-apply plugin: 'com.android.application'
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
 
 android {
-    apply from: "../variables.gradle"
     namespace "com.liaisonlegale.app"
-    compileSdk project.hasProperty('compileSdkVersion') ? project.compileSdkVersion : 34
+    compileSdk 34
 
     defaultConfig {
         applicationId "com.liaisonlegale.app"
-        minSdk project.hasProperty('minSdkVersion') ? project.minSdkVersion : 22
-        targetSdk project.hasProperty('targetSdkVersion') ? project.targetSdkVersion : 34
+        minSdk 22
+        targetSdk 34
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -22,12 +24,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.toVersion(project.hasProperty('javaVersion') ? project.javaVersion : '17')
-        targetCompatibility JavaVersion.toVersion(project.hasProperty('javaVersion') ? project.javaVersion : '17')
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = project.hasProperty('javaVersion') ? project.javaVersion : '17'
+        jvmTarget = '17'
     }
 
     lintOptions {
@@ -35,7 +37,6 @@ android {
     }
 
     buildFeatures {
-        // Determines whether to generate a BuildConfig class.
         buildConfig = false
     }
 }
@@ -48,13 +49,14 @@ repositories {
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
-    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
-    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
-    testImplementation "junit:junit:$junitVersion"
-    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
-    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation "androidx.appcompat:appcompat:1.7.0"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:1.2.0"
+    implementation "androidx.core:core-splashscreen:1.0.1"
+    testImplementation "junit:junit:4.13.2"
+    androidTestImplementation "androidx.test.ext:junit:1.2.1"
+    androidTestImplementation "androidx.test.espresso:espresso-core:3.6.1"
     implementation project(':capacitor-android')
+    implementation project(':capacitor-cordova-android-plugins')
 }
 
 apply from: "$rootDir/capacitor.build.gradle"
