@@ -1,26 +1,42 @@
 apply plugin: 'com.android.application'
 
 android {
+    apply from: "../variables.gradle"
     namespace "com.liaisonlegale.app"
-    compileSdk rootProject.ext.compileSdkVersion
+    compileSdk project.hasProperty('compileSdkVersion') ? project.compileSdkVersion : 34
+
     defaultConfig {
         applicationId "com.liaisonlegale.app"
-        minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
+        minSdk project.hasProperty('minSdkVersion') ? project.minSdkVersion : 22
+        targetSdk project.hasProperty('targetSdkVersion') ? project.targetSdkVersion : 34
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        aaptOptions {
-             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
-             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
-            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
-        }
     }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.toVersion(project.hasProperty('javaVersion') ? project.javaVersion : '17')
+        targetCompatibility JavaVersion.toVersion(project.hasProperty('javaVersion') ? project.javaVersion : '17')
+    }
+
+    kotlinOptions {
+        jvmTarget = project.hasProperty('javaVersion') ? project.javaVersion : '17'
+    }
+
+    lintOptions {
+        abortOnError false
+    }
+
+    buildFeatures {
+        // Determines whether to generate a BuildConfig class.
+        buildConfig = false
     }
 }
 
@@ -35,20 +51,19 @@ dependencies {
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
-    implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
-    implementation project(':capacitor-cordova-android-plugins')
+    implementation project(':capacitor-android')
 }
 
-apply from: 'capacitor.build.gradle'
+apply from: "$rootDir/capacitor.build.gradle"
 
 try {
     def servicesJSON = file('google-services.json')
-    if (servicesJSON.text) {
+    if (servicesJSON.exists()) {
         apply plugin: 'com.google.gms.google-services'
     }
 } catch(Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+    logger.info("google-services.json not found, skipping google-services plugin")
 }
