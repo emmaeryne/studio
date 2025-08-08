@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, CheckCircle2, Archive, Clock, ArrowUpRight, PlusCircle, Calendar as CalendarIcon, Check, Edit, BarChart3 } from "lucide-react";
+import { Briefcase, CheckCircle2, Archive, Clock, ArrowUpRight, PlusCircle, Calendar as CalendarIcon, Check, Edit, BarChart3, Bell } from "lucide-react";
 import { AddCaseDialog } from "@/components/add-case-dialog";
 import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -76,8 +76,13 @@ export function DashboardClientPage({ initialCases, initialAppointments }: { ini
       data[month]++;
     });
     
-    return Object.entries(data).map(([name, total]) => ({ name, cases: total }))
-      .sort((a, b) => new Date(a.name).getTime() - new Date(b.name).getTime());
+    const sortedMonths = Object.keys(data).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+    
+    return sortedMonths.map(month => ({
+      name: month,
+      cases: data[month]
+    }));
+
   }, [cases]);
 
 
@@ -132,6 +137,11 @@ export function DashboardClientPage({ initialCases, initialAppointments }: { ini
      router.refresh(); 
   }
 
+  const quickTasks = [
+    ...appointments.filter(a => a.status === 'En attente').map(a => ({ type: 'appointment', text: `Confirmer RDV avec ${a.clientName}`, link: '/dashboard/calendar' })),
+    ...cases.filter(c => c.status === 'En attente du client').map(c => ({ type: 'case', text: `Suivi client pour affaire ${c.caseNumber}`, link: `/dashboard/cases/${c.id}` })),
+  ].slice(0, 5);
+
 
   return (
     <>
@@ -155,151 +165,186 @@ export function DashboardClientPage({ initialCases, initialAppointments }: { ini
         </AddCaseDialog>
       </div>
       
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[
-              { title: "Affaires en cours", value: stats.inProgress, icon: Briefcase, color: "text-primary" },
-              { title: "Affaires Clôturées", value: stats.closed, icon: CheckCircle2, color: "text-green-600" },
-              { title: "Nouvelles Affaires", value: stats.new, icon: Archive, color: "text-amber-600" },
-              { title: "Échéances Proches", value: cases.reduce((acc, c) => acc + c.keyDeadlines.length, 0), icon: Clock, color: "text-destructive" }
-          ].map((stat, index) => (
-             <Card key={index}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                    <stat.icon className={`h-4 w-4 text-muted-foreground ${stat.color}`} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content Column */}
+        <div className="lg:col-span-2 flex flex-col gap-6">
+            {/* Stats Cards */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                 {[
+                    { title: "Affaires en cours", value: stats.inProgress, icon: Briefcase, color: "text-primary" },
+                    { title: "Affaires Clôturées", value: stats.closed, icon: CheckCircle2, color: "text-green-600" },
+                    { title: "Nouvelles Affaires", value: stats.new, icon: Archive, color: "text-amber-600" },
+                    { title: "Échéances Proches", value: cases.reduce((acc, c) => acc + c.keyDeadlines.length, 0), icon: Clock, color: "text-destructive" }
+                ].map((stat, index) => (
+                    <Card key={index}>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                            <stat.icon className={`h-4 w-4 text-muted-foreground ${stat.color}`} />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{stat.value}</div>
+                            <p className="text-xs text-muted-foreground">
+                                {stat.title === 'Affaires en cours' ? `${stats.total} affaires au total` : 'Ce mois-ci'}
+                            </p>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+
+            {/* Case Activity Chart */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline flex items-center gap-2"><BarChart3/>Activité des Affaires</CardTitle>
+                    <CardDescription>Aperçu mensuel des nouvelles affaires créées.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{stat.value}</div>
-                    <p className="text-xs text-muted-foreground">
-                        {stat.title === 'Affaires en cours' ? `${stats.total} affaires au total` : 'Ce mois-ci'}
-                    </p>
+                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                        <BarChart accessibilityLayer data={monthlyCaseData} margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
+                            <CartesianGrid vertical={false} />
+                            <XAxis
+                                dataKey="name"
+                                tickLine={false}
+                                tickMargin={10}
+                                axisLine={false}
+                                tickFormatter={(value) => value.charAt(0).toUpperCase() + value.slice(1, 3)}
+                            />
+                            <YAxis allowDecimals={false} />
+                            <ChartTooltip content={<ChartTooltipContent />} />
+                            <Legend />
+                            <Bar dataKey="cases" fill="var(--color-cases)" radius={4} />
+                        </BarChart>
+                    </ChartContainer>
                 </CardContent>
             </Card>
-          ))}
-      </div>
 
-      <div className="grid gap-6 md:grid-cols-5">
-        <Card className="md:col-span-3">
-            <CardHeader>
-                <CardTitle className="font-headline flex items-center gap-2"><BarChart3/>Activité des Affaires</CardTitle>
-                <CardDescription>Aperçu mensuel des nouvelles affaires créées.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                    <BarChart accessibilityLayer data={monthlyCaseData} margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
-                        <CartesianGrid vertical={false} />
-                        <XAxis
-                            dataKey="name"
-                            tickLine={false}
-                            tickMargin={10}
-                            axisLine={false}
-                            tickFormatter={(value) => value.slice(0, 3)}
-                        />
-                        <YAxis allowDecimals={false} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Legend />
-                        <Bar dataKey="cases" fill="var(--color-cases)" radius={4} />
-                    </BarChart>
-                </ChartContainer>
-            </CardContent>
-        </Card>
-        
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle className="font-headline">Rendez-vous à venir</CardTitle>
-            <CardDescription>
-              Vos prochains rendez-vous.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-             {upcomingAppointments.length > 0 ? (
-              upcomingAppointments.map((appointment) => (
-              <div key={appointment.id} className="flex items-center gap-4 p-2 rounded-md hover:bg-muted/50">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-                  <CalendarIcon className="h-5 w-5" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium leading-none">{appointment.clientName}</p>
-                  <p className="text-xs text-muted-foreground">{new Date(appointment.date).toLocaleDateString('fr-FR')} - {appointment.time}</p>
-                </div>
-                <div className="text-right flex items-center gap-1">
-                    {appointment.status === 'En attente' ? (
-                        <>
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setAppointmentToReschedule(appointment)}>
-                                <Edit className="h-4 w-4 text-blue-600"/>
-                            </Button>
-                             <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleConfirm(appointment.id)}>
-                                <Check className="h-4 w-4 text-green-600"/>
-                            </Button>
-                        </>
-                    ) : (
-                       <Badge variant={getAppointmentStatusVariant(appointment.status)}>{appointment.status}</Badge>
-                    )}
-                </div>
-              </div>
-            ))
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">Aucun rendez-vous à venir.</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-      
-      <Card>
-        <CardHeader>
-        <div className="flex items-center justify-between">
-            <CardTitle className="font-headline">Affaires Récentes</CardTitle>
-            <Button asChild size="sm" variant="outline">
-                <Link href="/dashboard/cases">
-                    Voir Tout <ArrowUpRight className="h-4 w-4 ml-2" />
-                </Link>
-            </Button>
-        </div>
-        <CardDescription>
-            Les 5 dernières affaires soumises ou mises à jour.
-        </CardDescription>
-        </CardHeader>
-        <CardContent>
-        <Table>
-            <TableHeader>
-            <TableRow>
-                <TableHead>Client</TableHead>
-                <TableHead className="hidden sm:table-cell">Type</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead className="text-right">Dernière mise à jour</TableHead>
-                <TableHead>
-                <span className="sr-only">Actions</span>
-                </TableHead>
-            </TableRow>
-            </TableHeader>
-            <TableBody>
-            {recentCases.map((caseItem) => (
-                <TableRow key={caseItem.id}>
-                <TableCell>
-                    <div className="font-medium">{caseItem.clientName}</div>
-                    <div className="hidden text-sm text-muted-foreground md:inline">
-                    {caseItem.caseNumber}
-                    </div>
-                </TableCell>
-                <TableCell className="hidden sm:table-cell">{caseItem.caseType}</TableCell>
-                <TableCell>
-                    <Badge variant={getStatusVariant(caseItem.status)} className={caseItem.status === 'En cours' ? 'bg-primary/20 text-primary hover:bg-primary/30' : ''}>
-                    {caseItem.status}
-                    </Badge>
-                </TableCell>
-                <TableCell className="text-right">{new Date(caseItem.lastUpdate).toLocaleDateString('fr-FR')}</TableCell>
-                <TableCell className="text-right">
-                    <Link href={`/dashboard/cases/${caseItem.id}`}>
-                    <Button variant="outline" size="sm">
-                        Voir
+            {/* Recent Cases Table */}
+            <Card>
+                <CardHeader>
+                <div className="flex items-center justify-between">
+                    <CardTitle className="font-headline">Affaires Récentes</CardTitle>
+                    <Button asChild size="sm" variant="outline">
+                        <Link href="/dashboard/cases">
+                            Voir Tout <ArrowUpRight className="h-4 w-4 ml-2" />
+                        </Link>
                     </Button>
-                    </Link>
-                </TableCell>
-                </TableRow>
-            ))}
-            </TableBody>
-        </Table>
-        </CardContent>
-      </Card>
+                </div>
+                <CardDescription>
+                    Les 5 dernières affaires soumises ou mises à jour.
+                </CardDescription>
+                </CardHeader>
+                <CardContent>
+                <Table>
+                    <TableHeader>
+                    <TableRow>
+                        <TableHead>Client</TableHead>
+                        <TableHead className="hidden sm:table-cell">Type</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead className="text-right">Dernière mise à jour</TableHead>
+                        <TableHead>
+                        <span className="sr-only">Actions</span>
+                        </TableHead>
+                    </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                    {recentCases.map((caseItem) => (
+                        <TableRow key={caseItem.id}>
+                        <TableCell>
+                            <div className="font-medium">{caseItem.clientName}</div>
+                            <div className="hidden text-sm text-muted-foreground md:inline">
+                            {caseItem.caseNumber}
+                            </div>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">{caseItem.caseType}</TableCell>
+                        <TableCell>
+                            <Badge variant={getStatusVariant(caseItem.status)} className={caseItem.status === 'En cours' ? 'bg-primary/20 text-primary hover:bg-primary/30' : ''}>
+                            {caseItem.status}
+                            </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">{new Date(caseItem.lastUpdate).toLocaleDateString('fr-FR')}</TableCell>
+                        <TableCell className="text-right">
+                            <Link href={`/dashboard/cases/${caseItem.id}`}>
+                            <Button variant="outline" size="sm">
+                                Voir
+                            </Button>
+                            </Link>
+                        </TableCell>
+                        </TableRow>
+                    ))}
+                    </TableBody>
+                </Table>
+                </CardContent>
+            </Card>
+        </div>
+
+        {/* Side Column */}
+        <div className="lg:col-span-1 flex flex-col gap-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline">Rendez-vous à venir</CardTitle>
+                    <CardDescription>
+                    Vos prochains rendez-vous.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4">
+                    {upcomingAppointments.length > 0 ? (
+                    upcomingAppointments.map((appointment) => (
+                    <div key={appointment.id} className="flex items-center gap-4 p-2 rounded-md hover:bg-muted/50">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+                        <CalendarIcon className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1">
+                        <p className="text-sm font-medium leading-none">{appointment.clientName}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(appointment.date).toLocaleDateString('fr-FR')} - {appointment.time}</p>
+                        </div>
+                        <div className="text-right flex items-center gap-1">
+                            {appointment.status === 'En attente' ? (
+                                <>
+                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setAppointmentToReschedule(appointment)}>
+                                        <Edit className="h-4 w-4 text-blue-600"/>
+                                    </Button>
+                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleConfirm(appointment.id)}>
+                                        <Check className="h-4 w-4 text-green-600"/>
+                                    </Button>
+                                </>
+                            ) : (
+                            <Badge variant={getAppointmentStatusVariant(appointment.status)}>{appointment.status}</Badge>
+                            )}
+                        </div>
+                    </div>
+                    ))
+                    ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">Aucun rendez-vous à venir.</p>
+                    )}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline">Tâches Rapides</CardTitle>
+                    <CardDescription>Actions en attente ou notifications.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                     {quickTasks.length > 0 ? quickTasks.map((task, index) => (
+                        <div key={index} className="flex items-start gap-3 p-2 rounded-md hover:bg-muted/50">
+                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary mt-1">
+                                <Bell className="h-4 w-4" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-sm">{task.text}</p>
+                                <Link href={task.link}>
+                                     <Button variant="link" size="sm" className="p-0 h-auto text-xs">
+                                        Voir
+                                     </Button>
+                                </Link>
+                            </div>
+                        </div>
+                     )) : (
+                        <p className="text-sm text-muted-foreground text-center py-4">Aucune tâche en attente.</p>
+                     )}
+                </CardContent>
+            </Card>
+        </div>
+      </div>
     </div>
     </>
   );
