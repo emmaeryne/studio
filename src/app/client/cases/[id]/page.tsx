@@ -2,7 +2,7 @@
 "use client";
 
 import { notFound, useParams } from "next/navigation";
-import { getCaseById } from "@/lib/actions";
+import { getCaseById, getCases } from "@/lib/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +19,22 @@ import { RequestAppointmentDialog } from "@/components/request-appointment-dialo
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useState, useEffect } from "react";
 import type { Case } from "@/lib/data";
+
+
+// This function is required for static export of dynamic routes.
+// It tells Next.js which case pages to generate at build time.
+export async function generateStaticParams() {
+    const cases = await getCases();
+
+    if (!cases || cases.length === 0) {
+        return [];
+    }
+ 
+    return cases.map((caseItem) => ({
+        id: caseItem.id,
+    }));
+}
+
 
 export default function ClientCaseDetailPage() {
   const params = useParams();
