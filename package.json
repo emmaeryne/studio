@@ -11,7 +11,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "cap": "capacitor",
-    "build:android": "npm run build && capacitor sync android"
+    "build:android": "capacitor sync android"
   },
   "dependencies": {
     "@capacitor/android": "^6.1.0",
