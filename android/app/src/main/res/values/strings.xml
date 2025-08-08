@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Liaison Légale</string>
+    <string name="title_activity_main">Liaison Légale</string>
+    <string name="package_name">com.liaisonlegale.app</string>
+    <string name="custom_url_scheme">com.liaisonlegale.app</string>
+</resources>
