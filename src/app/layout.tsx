@@ -3,8 +3,8 @@ import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AvocatConnect",
-  description: "Plateforme de gestion juridique simplifiée",
+  title: "Liaison L\u00e9gale",
+  description: "Plateforme de gestion juridique simplifi\u00e9e",
   manifest: "/manifest.json",
 };
 
