@@ -28,13 +28,7 @@ import {
   sendEmailVerification,
 } from "firebase/auth";
 
-// --- AuthDialog Component is now defined directly in this file ---
-
-interface AuthDialogProps {
-  role: "lawyer" | "client" | null;
-  isOpen: boolean;
-  onClose: () => void;
-}
+// --- AuthDialog Logic is now defined directly in this file ---
 
 const RegisterSchema = z.object({
   name: z.string().min(2, "Le nom est requis"),
@@ -47,11 +41,25 @@ const LoginSchema = z.object({
   password: z.string().min(1, "Le mot de passe est requis"),
 });
 
-const AuthDialog = ({ role, isOpen, onClose }: AuthDialogProps) => {
+
+// --- Main LoginClientPage Component ---
+
+export function LoginClientPage() {
+  const [dialogRole, setDialogRole] = useState<'lawyer' | 'client' | null>(null);
+  const searchParams = useSearchParams();
+
+  // --- State and handlers from the former AuthDialog component ---
   const [formData, setFormData] = useState({ name: "", email: "", password: "" });
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const role = searchParams.get('role');
+    if (role === 'lawyer' || role === 'client') {
+      setDialogRole(role);
+    }
+  }, [searchParams]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -60,7 +68,7 @@ const AuthDialog = ({ role, isOpen, onClose }: AuthDialogProps) => {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!role) return;
+    if (!dialogRole) return;
     setIsLoading(true);
 
     try {
@@ -68,7 +76,7 @@ const AuthDialog = ({ role, isOpen, onClose }: AuthDialogProps) => {
       const userCredential = await createUserWithEmailAndPassword(auth, validatedData.email, validatedData.password);
       const user = userCredential.user;
 
-      const profileResult = await createUserProfile(user.uid, validatedData.name, validatedData.email, role);
+      const profileResult = await createUserProfile(user.uid, validatedData.name, validatedData.email, dialogRole);
       if (!profileResult.success) {
         throw new Error(profileResult.error || "La création du profil utilisateur a échoué.");
       }
@@ -79,7 +87,7 @@ const AuthDialog = ({ role, isOpen, onClose }: AuthDialogProps) => {
         title: "Inscription réussie !",
         description: "Un email de vérification a été envoyé. Vous allez être connecté.",
       });
-      onClose();
+      setDialogRole(null);
     } catch (error) {
       let errorMessage = "Une erreur est survenue. Veuillez réessayer.";
       if (error instanceof z.ZodError) {
@@ -117,7 +125,7 @@ const AuthDialog = ({ role, isOpen, onClose }: AuthDialogProps) => {
     try {
         const validatedData = LoginSchema.parse(formData);
         await signInWithEmailAndPassword(auth, validatedData.email, validatedData.password);
-        onClose();
+        setDialogRole(null);
     } catch (error) {
        let errorMessage = "Une erreur est survenue. Veuillez réessayer.";
        if (error instanceof z.ZodError) {
@@ -146,108 +154,14 @@ const AuthDialog = ({ role, isOpen, onClose }: AuthDialogProps) => {
         setIsLoading(false);
     }
   };
-
+  
   const handleOpenChange = (open: boolean) => {
     if (!open) {
+      setDialogRole(null);
       setFormData({ name: "", email: "", password: "" });
       setShowPassword(false);
-      onClose();
     }
   };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader className="items-center text-center">
-          <div className="bg-primary/10 p-3 rounded-full mb-2">
-            <Briefcase className="h-8 w-8 text-primary" />
-          </div>
-          <DialogTitle className="font-headline text-2xl">
-            Espace {role === "lawyer" ? "Avocat" : "Client"}
-          </DialogTitle>
-          <DialogDescription>
-            Accédez à votre tableau de bord sécurisé.
-          </DialogDescription>
-        </DialogHeader>
-        <Tabs defaultValue="login" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login">Se connecter</TabsTrigger>
-            <TabsTrigger value="register">S'inscrire</TabsTrigger>
-          </TabsList>
-          <TabsContent value="login">
-            <form onSubmit={handleLogin} className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="login-email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="login-email" name="email" type="email" placeholder="votre@email.com" value={formData.email} onChange={handleInputChange} required disabled={isLoading} className="pl-10" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="login-password">Mot de passe</Label>
-                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="login-password" name="password" type={showPassword ? "text" : "password"} placeholder="••••••••" value={formData.password} onChange={handleInputChange} required disabled={isLoading} className="pl-10 pr-10" />
-                  <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowPassword(!showPassword)}>
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4 />}
-                  </Button>
-                </div>
-              </div>
-              <Button type="submit" size="lg" className="w-full font-semibold" disabled={isLoading}>
-                {isLoading ? <Loader2 className="animate-spin" /> : "Se connecter"}
-              </Button>
-            </form>
-          </TabsContent>
-          <TabsContent value="register">
-            <form onSubmit={handleRegister} className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="register-name">Nom complet</Label>
-                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="register-name" name="name" placeholder="Nom Prénom" value={formData.name} onChange={handleInputChange} required disabled={isLoading} className="pl-10" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="register-email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="register-email" name="email" type="email" placeholder="votre@email.com" value={formData.email} onChange={handleInputChange} required disabled={isLoading} className="pl-10" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="register-password">Mot de passe</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="register-password" name="password" type={showPassword ? "text" : "password"} placeholder="8+ caractères" value={formData.password} onChange={handleInputChange} required disabled={isLoading} className="pl-10 pr-10" />
-                   <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowPassword(!showPassword)}>
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4 />}
-                  </Button>
-                </div>
-              </div>
-              <Button type="submit" size="lg" className="w-full font-semibold" disabled={isLoading}>
-                 {isLoading ? <Loader2 className="animate-spin" /> : "Créer le compte"}
-              </Button>
-            </form>
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-
-// --- Main LoginClientPage Component ---
-
-export function LoginClientPage() {
-  const [dialogRole, setDialogRole] = useState<'lawyer' | 'client' | null>(null);
-  const searchParams = useSearchParams();
-
-  useEffect(() => {
-    const role = searchParams.get('role');
-    if (role === 'lawyer' || role === 'client') {
-      setDialogRole(role);
-    }
-  }, [searchParams]);
 
   // Fallback to a neutral state if searchParams are not available initially
   if (!searchParams) {
@@ -256,11 +170,83 @@ export function LoginClientPage() {
 
   return (
     <>
-      <AuthDialog
-        role={dialogRole}
-        isOpen={!!dialogRole}
-        onClose={() => setDialogRole(null)}
-      />
+      <Dialog open={!!dialogRole} onOpenChange={handleOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="items-center text-center">
+            <div className="bg-primary/10 p-3 rounded-full mb-2">
+              <Briefcase className="h-8 w-8 text-primary" />
+            </div>
+            <DialogTitle className="font-headline text-2xl">
+              Espace {dialogRole === "lawyer" ? "Avocat" : "Client"}
+            </DialogTitle>
+            <DialogDescription>
+              Accédez à votre tableau de bord sécurisé.
+            </DialogDescription>
+          </DialogHeader>
+          <Tabs defaultValue="login" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">Se connecter</TabsTrigger>
+              <TabsTrigger value="register">S'inscrire</TabsTrigger>
+            </TabsList>
+            <TabsContent value="login">
+              <form onSubmit={handleLogin} className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="login-email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input id="login-email" name="email" type="email" placeholder="votre@email.com" value={formData.email} onChange={handleInputChange} required disabled={isLoading} className="pl-10" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="login-password">Mot de passe</Label>
+                   <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input id="login-password" name="password" type={showPassword ? "text" : "password"} placeholder="••••••••" value={formData.password} onChange={handleInputChange} required disabled={isLoading} className="pl-10 pr-10" />
+                    <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowPassword(!showPassword)}>
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4 />}
+                    </Button>
+                  </div>
+                </div>
+                <Button type="submit" size="lg" className="w-full font-semibold" disabled={isLoading}>
+                  {isLoading ? <Loader2 className="animate-spin" /> : "Se connecter"}
+                </Button>
+              </form>
+            </TabsContent>
+            <TabsContent value="register">
+              <form onSubmit={handleRegister} className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="register-name">Nom complet</Label>
+                   <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input id="register-name" name="name" placeholder="Nom Prénom" value={formData.name} onChange={handleInputChange} required disabled={isLoading} className="pl-10" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="register-email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input id="register-email" name="email" type="email" placeholder="votre@email.com" value={formData.email} onChange={handleInputChange} required disabled={isLoading} className="pl-10" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="register-password">Mot de passe</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input id="register-password" name="password" type={showPassword ? "text" : "password"} placeholder="8+ caractères" value={formData.password} onChange={handleInputChange} required disabled={isLoading} className="pl-10 pr-10" />
+                     <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowPassword(!showPassword)}>
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4 />}
+                    </Button>
+                  </div>
+                </div>
+                <Button type="submit" size="lg" className="w-full font-semibold" disabled={isLoading}>
+                   {isLoading ? <Loader2 className="animate-spin" /> : "Créer le compte"}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+      
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-background to-accent/10 px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
