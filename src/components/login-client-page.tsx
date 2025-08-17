@@ -20,6 +20,11 @@ export function LoginClientPage() {
     }
   }, [searchParams]);
 
+  // Fallback to a neutral state if searchParams are not available initially
+  if (!searchParams) {
+    return null; 
+  }
+
   return (
     <>
       <AuthDialog

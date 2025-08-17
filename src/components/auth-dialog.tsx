@@ -62,14 +62,11 @@ export function AuthDialog({ role, isOpen, onClose }: AuthDialogProps) {
       const userCredential = await createUserWithEmailAndPassword(auth, validatedData.email, validatedData.password);
       const user = userCredential.user;
 
-      // Send verification email
       await sendEmailVerification(user);
 
-      // Create user profile in Firestore
       const profileResult = await createUserProfile(user.uid, validatedData.name, validatedData.email, role);
       if (!profileResult.success) throw new Error(profileResult.error);
 
-      // Get ID token and create session
       const idToken = await user.getIdToken(true);
       const sessionResult = await createSessionCookie(idToken);
       if (!sessionResult.success) throw new Error(sessionResult.error);
@@ -83,22 +80,28 @@ export function AuthDialog({ role, isOpen, onClose }: AuthDialogProps) {
       onClose();
 
     } catch (error) {
-      let errorMessage = "Une erreur est survenue.";
+      let errorMessage = "Une erreur est survenue. Veuillez réessayer.";
       if (error instanceof z.ZodError) {
         errorMessage = error.errors[0].message;
-      } else if (error instanceof Error && 'code' in error) {
-        switch ((error as any).code) {
-          case 'auth/email-already-in-use':
-            errorMessage = 'Cette adresse email est déjà utilisée.';
-            break;
-          default:
-            errorMessage = 'Erreur lors de la création du compte.';
-            console.error(error);
+      } else if (error instanceof Error) {
+        if ('code' in error) {
+            switch ((error as any).code) {
+                case 'auth/email-already-in-use':
+                    errorMessage = 'Cette adresse email est déjà utilisée.';
+                    break;
+                case 'auth/weak-password':
+                    errorMessage = 'Le mot de passe est trop faible.';
+                    break;
+                default:
+                    errorMessage = (error as any).message || "Erreur lors de la création du compte.";
+            }
+        } else {
+            errorMessage = error.message;
         }
       }
       toast({
         variant: "destructive",
-        title: "Erreur",
+        title: "Erreur d'inscription",
         description: errorMessage,
       });
     } finally {
@@ -118,41 +121,49 @@ export function AuthDialog({ role, isOpen, onClose }: AuthDialogProps) {
 
         const idToken = await user.getIdToken(true);
         const sessionResult = await createSessionCookie(idToken);
-        if (!sessionResult.success) throw new Error(sessionResult.error);
+
+        if (!sessionResult.success) {
+            throw new Error(sessionResult.error);
+        }
 
         toast({
           title: "Connexion réussie",
           description: "Vous allez être redirigé.",
         });
         
-        router.push(role === "lawyer" ? "/dashboard" : "/client/dashboard");
+        const targetPath = role === "lawyer" ? "/dashboard" : "/client/dashboard";
+        router.push(targetPath);
         onClose();
 
     } catch (error) {
-       let errorMessage = "Une erreur est survenue.";
+       let errorMessage = "Une erreur est survenue. Veuillez réessayer.";
        if (error instanceof z.ZodError) {
          errorMessage = error.errors[0].message;
-       } else if (error instanceof Error && 'code' in error) {
-         switch ((error as any).code) {
-           case 'auth/wrong-password':
-           case 'auth/user-not-found':
-           case 'auth/invalid-credential':
-             errorMessage = 'Email ou mot de passe incorrect.';
-             break;
-           default:
-             errorMessage = "Erreur d'authentification.";
-             console.error(error);
-         }
+       } else if (error instanceof Error) {
+            if ('code' in error) {
+                switch ((error as any).code) {
+                case 'auth/wrong-password':
+                case 'auth/user-not-found':
+                case 'auth/invalid-credential':
+                    errorMessage = 'Email ou mot de passe incorrect.';
+                    break;
+                default:
+                    errorMessage = (error as any).message || "Erreur d'authentification.";
+                }
+            } else {
+                errorMessage = error.message;
+            }
        }
        toast({
          variant: "destructive",
-         title: "Erreur",
+         title: "Erreur de connexion",
          description: errorMessage,
        });
     } finally {
         setIsLoading(false);
     }
   };
+
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
