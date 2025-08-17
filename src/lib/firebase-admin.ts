@@ -1,10 +1,19 @@
-import admin from 'firebase-admin';
-import { App, getApp, getApps, initializeApp } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
+import type { App } from 'firebase-admin/app';
 
-function getAdminApp(): App {
-  if (getApps().length > 0) {
-    return getApp();
+// Cache the admin instance to avoid re-importing and re-initializing
+let admin: typeof import('firebase-admin') | null = null;
+
+async function getAdmin() {
+  if (!admin) {
+    admin = await import('firebase-admin');
+  }
+  return admin;
+}
+
+async function getAdminApp(): Promise<App> {
+  const adminSDK = await getAdmin();
+  if (adminSDK.apps.length > 0) {
+    return adminSDK.app();
   }
 
   const serviceAccount = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
@@ -12,13 +21,13 @@ function getAdminApp(): App {
     throw new Error('GOOGLE_APPLICATION_CREDENTIALS_JSON environment variable is not set.');
   }
 
-  return initializeApp({
-    credential: admin.credential.cert(JSON.parse(serviceAccount)),
+  return adminSDK.initializeApp({
+    credential: adminSDK.credential.cert(JSON.parse(serviceAccount)),
   });
 }
 
-function getAdminAuth() {
-  return getAuth(getAdminApp());
+export async function getAdminAuth() {
+  const adminSDK = await getAdmin();
+  await getAdminApp(); // Ensure app is initialized before getting auth
+  return adminSDK.auth();
 }
-
-export const adminAuth = getAdminAuth();

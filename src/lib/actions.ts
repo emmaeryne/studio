@@ -13,7 +13,7 @@ import type { EstimateCaseCostInput, EstimateCaseCostOutput } from '@/ai/flows/e
 import type { CaseDocument, Lawyer, Message, Client, Case, Appointment, Invoice, Conversation, Notification } from './data';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { adminAuth } from './firebase-admin';
+import { getAdminAuth } from './firebase-admin';
 
 const SESSION_COOKIE_NAME = '__session';
 
@@ -37,6 +37,7 @@ const convertTimestamps = (data: any) => {
 export async function createSessionCookie(idToken: string) {
     const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
     try {
+        const adminAuth = await getAdminAuth();
         const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
         cookies().set(SESSION_COOKIE_NAME, sessionCookie, {
             maxAge: expiresIn,
@@ -61,6 +62,7 @@ export async function getCurrentUser(): Promise<(Client & { role: 'client' }) | 
     if (!sessionCookie) return null;
 
     try {
+        const adminAuth = await getAdminAuth();
         const decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true);
         const uid = decodedToken.uid;
 
