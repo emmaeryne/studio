@@ -1,12 +1,11 @@
-// This component is created to house client-side logic for the login page,
-// as the main page component is now a Server Component for authentication checks.
+
+// This component now contains all logic for the login page and the auth dialog
+// to resolve a persistent build error.
 "use client";
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Briefcase, User, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
-import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +26,9 @@ import {
   signInWithEmailAndPassword,
   sendEmailVerification,
 } from "firebase/auth";
+import { Loader2, Mail, Lock, User, Eye, EyeOff, Briefcase } from "lucide-react";
+import { Card, CardDescription, CardTitle } from "@/components/ui/card";
+
 
 // --- AuthDialog Logic is now defined directly in this file ---
 
@@ -163,7 +165,6 @@ export function LoginClientPage() {
     }
   };
 
-  // Fallback to a neutral state if searchParams are not available initially
   if (!searchParams) {
     return null; 
   }
@@ -203,7 +204,7 @@ export function LoginClientPage() {
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input id="login-password" name="password" type={showPassword ? "text" : "password"} placeholder="••••••••" value={formData.password} onChange={handleInputChange} required disabled={isLoading} className="pl-10 pr-10" />
                     <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowPassword(!showPassword)}>
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4 />}
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
                   </div>
                 </div>
@@ -234,7 +235,7 @@ export function LoginClientPage() {
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input id="register-password" name="password" type={showPassword ? "text" : "password"} placeholder="8+ caractères" value={formData.password} onChange={handleInputChange} required disabled={isLoading} className="pl-10 pr-10" />
                      <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowPassword(!showPassword)}>
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4 />}
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
                   </div>
                 </div>
@@ -254,8 +255,8 @@ export function LoginClientPage() {
           transition={{ duration: 0.5 }}
           className="w-full max-w-4xl text-center"
         >
+           <p className="text-sm text-muted-foreground mb-4">Développée par Emna Awini</p>
           <div className="mb-8">
-             <p className="text-sm text-muted-foreground mb-4">Développée par Emna Awini</p>
             <h1 className="text-4xl md:text-5xl font-headline font-bold">
               Bienvenue sur AvocatConnect
             </h1>
