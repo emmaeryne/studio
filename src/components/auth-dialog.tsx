@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -33,7 +34,7 @@ interface AuthDialogProps {
 const RegisterSchema = z.object({
   name: z.string().min(2, "Le nom est requis"),
   email: z.string().email("Adresse email invalide"),
-  password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
+  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères pour plus de sécurité."),
 });
 
 const LoginSchema = z.object({
@@ -215,7 +216,7 @@ export function AuthDialog({ role, isOpen, onClose }: AuthDialogProps) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="register-password">Mot de passe</Label>
-                <Input id="register-password" name="password" type="password" placeholder="6+ caractères" value={formData.password} onChange={handleInputChange} required disabled={isLoading} />
+                <Input id="register-password" name="password" type="password" placeholder="8+ caractères" value={formData.password} onChange={handleInputChange} required disabled={isLoading} />
               </div>
               <Button type="submit" size="lg" className="w-full font-semibold" disabled={isLoading}>
                  {isLoading ? <Loader2 className="animate-spin" /> : "Créer le compte"}
