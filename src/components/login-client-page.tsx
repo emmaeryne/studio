@@ -45,7 +45,6 @@ export function LoginClientPage() {
           transition={{ duration: 0.5 }}
           className="w-full max-w-4xl text-center"
         >
-           <p className="text-sm text-muted-foreground mb-4">Développée par Emna Awini</p>
           <div className="mb-8">
             <h1 className="text-4xl md:text-5xl font-headline font-bold">
               Bienvenue sur AvocatConnect
@@ -94,6 +93,7 @@ export function LoginClientPage() {
               </Card>
             </motion.div>
           </div>
+           <p className="text-sm text-muted-foreground mt-8">Développée par Emna Awini</p>
         </motion.div>
       </div>
     </>
