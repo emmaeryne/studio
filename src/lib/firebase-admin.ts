@@ -1,17 +1,18 @@
+import admin from 'firebase-admin';
 import type { App } from 'firebase-admin/app';
 
 // Cache the admin instance to avoid re-importing and re-initializing
-let admin: typeof import('firebase-admin') | null = null;
+let adminInstance: typeof import('firebase-admin') | null = null;
 
-async function getAdmin() {
-  if (!admin) {
-    admin = await import('firebase-admin');
+function getAdmin() {
+  if (!adminInstance) {
+    adminInstance = admin;
   }
-  return admin;
+  return adminInstance;
 }
 
-async function getAdminApp(): Promise<App> {
-  const adminSDK = await getAdmin();
+function getAdminApp(): App {
+  const adminSDK = getAdmin();
   if (adminSDK.apps.length > 0) {
     return adminSDK.app();
   }
@@ -26,8 +27,8 @@ async function getAdminApp(): Promise<App> {
   });
 }
 
-export async function getAdminAuth() {
-  const adminSDK = await getAdmin();
-  await getAdminApp(); // Ensure app is initialized before getting auth
+export function getAdminAuth() {
+  getAdminApp(); // Ensure app is initialized before getting auth
+  const adminSDK = getAdmin();
   return adminSDK.auth();
 }

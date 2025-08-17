@@ -29,7 +29,6 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-
   const lawyerUser = await getCurrentUser();
   if (!lawyerUser || lawyerUser.role !== 'lawyer') {
     redirect('/login');

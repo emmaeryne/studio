@@ -1,4 +1,3 @@
-
 'use server'
 
 import { db } from './firebase';
@@ -37,7 +36,7 @@ const convertTimestamps = (data: any) => {
 export async function createSessionCookie(idToken: string) {
     const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
     try {
-        const adminAuth = await getAdminAuth();
+        const adminAuth = getAdminAuth();
         const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
         cookies().set(SESSION_COOKIE_NAME, sessionCookie, {
             maxAge: expiresIn,
@@ -62,17 +61,21 @@ export async function getCurrentUser(): Promise<(Client & { role: 'client' }) | 
     if (!sessionCookie) return null;
 
     try {
-        const adminAuth = await getAdminAuth();
+        const adminAuth = getAdminAuth();
         const decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true);
         const uid = decodedToken.uid;
 
         // Check if user is a lawyer
-        let user = await getDocument<Lawyer>('users', uid);
-        if (user) return { ...user, role: 'lawyer' };
+        let userDoc = await getDoc(doc(db, 'users', uid));
+        if (userDoc.exists()) {
+            return { ...(convertTimestamps(userDoc.data()) as Lawyer), id: uid, role: 'lawyer' };
+        }
 
         // Check if user is a client
-        user = await getDocument<Client>('clients', uid);
-        if (user) return { ...user, role: 'client' } as Client & { role: 'client' };
+        userDoc = await getDoc(doc(db, 'clients', uid));
+        if (userDoc.exists()) {
+             return { ...(convertTimestamps(userDoc.data()) as Client), id: uid, role: 'client' };
+        }
 
         return null;
     } catch (error) {
@@ -80,6 +83,7 @@ export async function getCurrentUser(): Promise<(Client & { role: 'client' }) | 
         return null;
     }
 }
+
 
 export async function createUserProfile(uid: string, name: string, email: string, role: 'client' | 'lawyer') {
     const collectionName = role === 'lawyer' ? 'users' : 'clients';

@@ -35,7 +35,7 @@ export default async function HomePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Link href="/login?role=lawyer">
+            <Link href="/login?role=lawyer" passHref>
               <Card
                 className="p-8 cursor-pointer shadow-lg hover:shadow-xl transition-shadow border-2 border-transparent hover:border-primary h-full flex flex-col justify-center"
               >
@@ -55,7 +55,7 @@ export default async function HomePage() {
           </motion.div>
 
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-             <Link href="/login?role=client">
+             <Link href="/login?role=client" passHref>
               <Card
                 className="p-8 cursor-pointer shadow-lg hover:shadow-xl transition-shadow border-2 border-transparent hover:border-primary h-full flex flex-col justify-center"
               >
