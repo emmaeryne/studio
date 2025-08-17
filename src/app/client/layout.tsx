@@ -1,3 +1,6 @@
+// src/app/client/layout.tsx
+"use client";
+
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -9,25 +12,44 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getClientCases, getNotifications, getCurrentUser, signOut } from "@/lib/actions";
+import { getClientCases, getNotifications } from "@/lib/actions";
 import { Chatbot } from "@/components/chatbot";
 import { RequestAppointmentDialog } from "@/components/request-appointment-dialog";
 import { NotificationBell } from "@/components/notification-bell";
-import { Briefcase, LogOut } from "lucide-react";
-import { redirect } from "next/navigation";
+import { Briefcase, LogOut, Loader2 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import type { Case, Notification as NotificationType } from "@/lib/data";
 
-export default async function ClientLayout({
+export default function ClientLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const clientUser = await getCurrentUser();
-  if (!clientUser || clientUser.role !== 'client') {
-    redirect('/login');
-  }
+  const { user, loading, signOut } = useAuth();
+  const router = useRouter();
+  const [cases, setCases] = useState<Case[]>([]);
+  const [notifications, setNotifications] = useState<NotificationType[]>([]);
 
-  const clientCases = await getClientCases(clientUser.id);
-  const clientNotifications = await getNotifications(clientUser.id);
+  useEffect(() => {
+    if (!loading && (!user || user.role !== 'client')) {
+      router.push('/login');
+    }
+    if (user) {
+        getClientCases(user.id).then(setCases);
+        getNotifications(user.id).then(setNotifications);
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) {
+    return (
+      <div className="flex min-h-screen w-full flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <p className="mt-2 text-muted-foreground">Chargement de votre espace...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -58,7 +80,7 @@ export default async function ClientLayout({
           >
             Messages
           </Link>
-           <RequestAppointmentDialog cases={clientCases}>
+           <RequestAppointmentDialog cases={cases}>
              <Button variant="link" className="text-muted-foreground p-0 h-auto font-normal">
                 Rendez-vous
              </Button>
@@ -68,19 +90,19 @@ export default async function ClientLayout({
             <div className="ml-auto flex-1 sm:flex-initial">
                  <Chatbot />
             </div>
-              <NotificationBell userId={clientUser.id} notifications={clientNotifications} />
+              <NotificationBell userId={user.id} notifications={notifications} />
             <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" size="icon" className="rounded-full">
                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={clientUser.avatar} alt={clientUser.name} />
-                    <AvatarFallback>{clientUser.name.charAt(0)}</AvatarFallback>
+                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <span className="sr-only">Toggle user menu</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{clientUser.name}</DropdownMenuLabel>
+              <DropdownMenuLabel>{user.name}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link href="/client/profile">Profil</Link>
@@ -89,14 +111,10 @@ export default async function ClientLayout({
                 <Link href="/client/payments">Paiements</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-               <form action={signOut}>
-                  <button type="submit" className="w-full">
-                    <DropdownMenuItem>
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Déconnexion</span>
-                    </DropdownMenuItem>
-                  </button>
-                </form>
+               <DropdownMenuItem onClick={signOut}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Déconnexion</span>
+                </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

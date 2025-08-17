@@ -1,10 +1,12 @@
+// src/app/layout.tsx
 import type { Metadata } from "next";
 import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from "@/contexts/AuthContext";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Liaison L\u00e9gale",
-  description: "Plateforme de gestion juridique simplifi\u00e9e",
+  title: "Liaison Légale",
+  description: "Plateforme de gestion juridique simplifiée",
   manifest: "/manifest.json",
 };
 
@@ -22,7 +24,9 @@ export default function RootLayout({
         <meta name="theme-color" content="#31708E" />
       </head>
       <body className="font-body antialiased">
-        {children}
+        <AuthProvider>
+            {children}
+        </AuthProvider>
         <Toaster />
       </body>
     </html>

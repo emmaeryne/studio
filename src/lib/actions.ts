@@ -1,8 +1,8 @@
+// src/lib/actions.ts
 'use server'
 
 import { db } from './firebase';
 import { collection, getDocs, doc, addDoc, updateDoc, setDoc, getDoc, query, where, orderBy, writeBatch, Timestamp, limit } from 'firebase/firestore';
-import { cookies } from 'next/headers';
 import { summarizeCaseDocuments } from '@/ai/flows/summarize-case-documents';
 import type { SummarizeCaseDocumentsInput } from '@/ai/flows/summarize-case-documents';
 import { askChatbot } from '@/ai/flows/chatbot';
@@ -11,10 +11,6 @@ import { estimateCaseCost } from '@/ai/flows/estimate-case-cost';
 import type { EstimateCaseCostInput, EstimateCaseCostOutput } from '@/ai/flows/estimate-case-cost';
 import type { CaseDocument, Lawyer, Message, Client, Case, Appointment, Invoice, Conversation, Notification } from './data';
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
-import { getAdminAuth } from './firebase-admin';
-
-const SESSION_COOKIE_NAME = '__session';
 
 // Helper function to convert Firestore Timestamps to strings
 const convertTimestamps = (data: any) => {
@@ -33,57 +29,8 @@ const convertTimestamps = (data: any) => {
 
 // --- AUTH / SESSION ACTIONS ---
 
-export async function createSessionCookie(idToken: string) {
-    const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
-    try {
-        const adminAuth = getAdminAuth();
-        const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
-        cookies().set(SESSION_COOKIE_NAME, sessionCookie, {
-            maxAge: expiresIn,
-            httpOnly: true,
-            secure: true,
-            path: '/',
-        });
-        return { success: true };
-    } catch (error) {
-        console.error('Error creating session cookie:', error);
-        return { success: false, error: 'Failed to create session.' };
-    }
-}
-
-export async function signOut() {
-    cookies().set(SESSION_COOKIE_NAME, '', { expires: new Date(0) });
-    redirect('/login');
-}
-
-export async function getCurrentUser(): Promise<(Client & { role: 'client' }) | (Lawyer & { role: 'lawyer' }) | null> {
-    const sessionCookie = cookies().get(SESSION_COOKIE_NAME)?.value;
-    if (!sessionCookie) return null;
-
-    try {
-        const adminAuth = getAdminAuth();
-        const decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true);
-        const uid = decodedToken.uid;
-
-        // Check if user is a lawyer
-        let userDoc = await getDoc(doc(db, 'users', uid));
-        if (userDoc.exists()) {
-            return { ...(convertTimestamps(userDoc.data()) as Lawyer), id: uid, role: 'lawyer' };
-        }
-
-        // Check if user is a client
-        userDoc = await getDoc(doc(db, 'clients', uid));
-        if (userDoc.exists()) {
-             return { ...(convertTimestamps(userDoc.data()) as Client), id: uid, role: 'client' };
-        }
-
-        return null;
-    } catch (error) {
-        // Session cookie is invalid.
-        return null;
-    }
-}
-
+// NOTE: All server-side session logic (createSessionCookie, getCurrentUser, signOut) has been removed
+// in favor of a purely client-side authentication model to resolve environmental issues.
 
 export async function createUserProfile(uid: string, name: string, email: string, role: 'client' | 'lawyer') {
     const collectionName = role === 'lawyer' ? 'users' : 'clients';
@@ -219,11 +166,7 @@ export async function addCase(newCaseData: { clientName: string; caseType: Case[
     }
 }
 
-export async function addClientCase(newCase: { caseType: Case['caseType']; description: string }) {
-    const currentUser = await getCurrentUser();
-    if (!currentUser || currentUser.role !== 'client') {
-        throw new Error("Utilisateur non autorisé.");
-    }
+export async function addClientCase(newCase: { caseType: Case['caseType']; description: string }, client: { id: string; name: string; avatar: string }) {
     const currentDate = new Date();
 
     let caseEstimate: EstimateCaseCostOutput | null = null;
@@ -238,9 +181,9 @@ export async function addClientCase(newCase: { caseType: Case['caseType']; descr
 
     const newCaseData: Omit<Case, 'id'> = {
         caseNumber: nextCaseNumber,
-        clientName: currentUser.name,
-        clientId: currentUser.id,
-        clientAvatar: currentUser.avatar,
+        clientName: client.name,
+        clientId: client.id,
+        clientAvatar: client.avatar,
         caseType: newCase.caseType,
         status: 'Nouveau',
         submittedDate: currentDate.toISOString(),
@@ -269,10 +212,6 @@ export async function addClientCase(newCase: { caseType: Case['caseType']; descr
 
 
 export async function updateCaseStatus(caseId: string, newStatus: Case['status']) {
-    const currentUser = await getCurrentUser();
-    if (!currentUser || currentUser.role !== 'lawyer') {
-        return { success: false, error: "Non autorisé." };
-    }
     try {
         const caseRef = doc(db, "cases", caseId);
         const caseItemSnap = await getDoc(caseRef);
@@ -337,10 +276,6 @@ export async function getAppointments(): Promise<(Appointment & { clientName: st
 
 
 export async function requestAppointment(appointmentData: { caseId: string, date: string, time: string, notes: string }) {
-     const currentUser = await getCurrentUser();
-    if (!currentUser || currentUser.role !== 'client') {
-        return { success: false, error: "Non autorisé." };
-    }
     try {
         const caseItem = await getCaseById(appointmentData.caseId);
         if (!caseItem) return { success: false, error: "Affaire non trouvée" };
@@ -471,13 +406,9 @@ export async function getClientProfile(id: string): Promise<Client | null> {
     return getDocument<Client>('clients', id);
 }
 
-export async function updateLawyerProfile(updatedLawyer: Omit<Lawyer, 'id'>) {
-    const currentUser = await getCurrentUser();
-    if (!currentUser || currentUser.role !== 'lawyer') {
-        return { success: false, error: "Non autorisé." };
-    }
+export async function updateLawyerProfile(lawyerId: string, updatedLawyer: Omit<Lawyer, 'id'>) {
     try {
-        const lawyerRef = doc(db, "users", currentUser.id);
+        const lawyerRef = doc(db, "users", lawyerId);
         await setDoc(lawyerRef, updatedLawyer, { merge: true });
         revalidatePath('/dashboard/profile');
         revalidatePath('/dashboard/layout');
@@ -488,17 +419,13 @@ export async function updateLawyerProfile(updatedLawyer: Omit<Lawyer, 'id'>) {
     }
 }
 
-export async function updateClientProfile(updatedClient: Omit<Client, 'id'>) {
-    const currentUser = await getCurrentUser();
-    if (!currentUser || currentUser.role !== 'client') {
-        return { success: false, error: "Non autorisé." };
-    }
+export async function updateClientProfile(clientId: string, updatedClient: Omit<Client, 'id'>) {
     try {
-        const clientRef = doc(db, "clients", currentUser.id);
+        const clientRef = doc(db, "clients", clientId);
         await setDoc(clientRef, updatedClient, { merge: true });
 
         // Update name in cases
-        const casesQuery = query(collection(db, 'cases'), where('clientId', '==', currentUser.id));
+        const casesQuery = query(collection(db, 'cases'), where('clientId', '==', clientId));
         const casesSnapshot = await getDocs(casesQuery);
         const batch = writeBatch(db);
         casesSnapshot.docs.forEach(caseDoc => {
@@ -639,11 +566,6 @@ export async function getClientInvoices(clientId: string): Promise<Invoice[]> {
 }
 
 export async function createInvoice(data: {caseId: string; totalCost: number; firstInstallment: number;}) {
-    const currentUser = await getCurrentUser();
-    if (!currentUser || currentUser.role !== 'lawyer') {
-        return { success: false, error: "Non autorisé." };
-    }
-
     try {
         const { caseId, totalCost, firstInstallment } = data;
         const caseRef = doc(db, "cases", caseId);

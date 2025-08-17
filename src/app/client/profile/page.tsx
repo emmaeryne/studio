@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -19,12 +18,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { updateClientProfile, getClientProfile, getCurrentUser } from "@/lib/actions";
+import { updateClientProfile } from "@/lib/actions";
 import { type Client } from "@/lib/data";
 import { Mail, Phone, Home, Upload } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function ClientProfilePage() {
+  const { user, loading } = useAuth();
   const [client, setClient] = useState<Client | null>(null);
   const [initialClient, setInitialClient] = useState<Client | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -35,16 +36,20 @@ export default function ClientProfilePage() {
   const router = useRouter();
   
   useEffect(() => {
-    const fetchClient = async () => {
-        const user = await getCurrentUser();
-        if (user && user.role === 'client') {
-            const profile = await getClientProfile(user.id);
-            setClient(profile);
-            setInitialClient(profile);
-        }
+    if (user) {
+        const clientData = {
+            id: user.uid,
+            name: user.name,
+            email: user.email || '',
+            avatar: user.avatar,
+            // These fields would be fetched from Firestore in a real app if they existed
+            phone: (user as any).phone || '',
+            address: (user as any).address || '',
+        };
+        setClient(clientData);
+        setInitialClient(clientData);
     }
-    fetchClient();
-  }, [])
+  }, [user])
 
   const validateForm = () => {
     if (!client) return false;
@@ -97,7 +102,7 @@ export default function ClientProfilePage() {
       return;
     }
 
-    const res = await updateClientProfile(client);
+    const res = await updateClientProfile(client.id, client);
 
     if (res.success) {
       toast({
@@ -114,7 +119,7 @@ export default function ClientProfilePage() {
     }
   };
 
-  if (!client) {
+  if (loading || !client) {
     return <div>Chargement...</div>;
   }
 

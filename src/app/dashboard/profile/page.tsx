@@ -11,9 +11,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { updateLawyerProfile, getLawyerProfile } from "@/lib/actions";
-import { staticUserData, Lawyer } from "@/lib/data";
-import { User, Mail, Building, Phone, Upload } from "lucide-react";
+import { updateLawyerProfile } from "@/lib/actions";
+import { Lawyer } from "@/lib/data";
+import { Mail, Building, Phone, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import {
@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
+import { useAuth } from "@/hooks/useAuth";
 
 type Errors = {
   name?: string;
@@ -31,6 +32,7 @@ type Errors = {
 };
 
 export default function ProfilePage() {
+  const { user, loading } = useAuth();
   const [lawyer, setLawyer] = useState<Lawyer | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
@@ -40,12 +42,18 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const fetchLawyer = async () => {
-        const profile = await getLawyerProfile(staticUserData.lawyer.id);
-        setLawyer(profile);
+    if (user && user.role === 'lawyer') {
+        setLawyer({
+            id: user.uid,
+            name: user.name,
+            email: user.email || '',
+            avatar: user.avatar,
+            role: 'Avocat',
+            specialty: (user as any).specialty || 'Droit de la famille',
+            phone: (user as any).phone || '',
+        });
     }
-    fetchLawyer();
-  }, []);
+  }, [user]);
 
   // Form validation
   const validateForm = () => {
@@ -102,7 +110,7 @@ export default function ProfilePage() {
       });
       return;
     }
-    const res = await updateLawyerProfile(lawyer);
+    const res = await updateLawyerProfile(lawyer.id, lawyer);
     if (res.success) {
       toast({
         title: "Profil mis à jour",
@@ -118,7 +126,7 @@ export default function ProfilePage() {
     }
   };
   
-  if (!lawyer) {
+  if (loading || !lawyer) {
     return <div>Chargement...</div>;
   }
 
@@ -274,7 +282,7 @@ export default function ProfilePage() {
             <div className="flex justify-end gap-4 pt-4">
               <Button
                 variant="outline"
-                onClick={() => setLawyer(staticUserData.lawyer)}
+                onClick={() => router.refresh()}
               >
                 Annuler
               </Button>

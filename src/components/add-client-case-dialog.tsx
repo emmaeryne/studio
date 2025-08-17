@@ -1,4 +1,3 @@
-
 // A dialog component for adding a new case from the client portal.
 'use client';
 import { useState } from 'react';
@@ -20,15 +19,26 @@ import { addClientCase } from '@/lib/actions';
 import { useRouter } from 'next/navigation';
 import type { Case } from '@/lib/data';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 export function AddClientCaseDialog({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const { user } = useAuth();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!user) {
+        toast({
+            variant: 'destructive',
+            title: 'Non authentifié',
+            description: 'Vous devez être connecté pour soumettre une affaire.',
+        });
+        return;
+    }
+
     setIsLoading(true);
     const formData = new FormData(event.currentTarget);
     const newCaseData = {
@@ -47,7 +57,7 @@ export function AddClientCaseDialog({ children }: { children: React.ReactNode })
     }
     
     try {
-        const result = await addClientCase(newCaseData);
+        const result = await addClientCase(newCaseData, user);
         if (result.success && result.newCaseId) {
             toast({
                 title: 'Affaire Soumise',

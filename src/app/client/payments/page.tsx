@@ -1,4 +1,3 @@
-
 // A page for clients to view and pay their invoices.
 "use client";
 
@@ -24,23 +23,20 @@ import { type Invoice } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { CreditCard, CheckCircle } from "lucide-react";
 import { PaymentDialog } from "@/components/payment-dialog";
-import { makePayment, getClientInvoices, getCurrentUser } from "@/lib/actions";
+import { makePayment, getClientInvoices } from "@/lib/actions";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function ClientPaymentsPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
-    const fetchInvoices = async () => {
-        const user = await getCurrentUser();
-        if (user && user.role === 'client') {
-            const clientInvoices = await getClientInvoices(user.id);
-            setInvoices(clientInvoices);
-        }
-    };
-    fetchInvoices();
-  }, []);
+    if (user) {
+        getClientInvoices(user.id).then(setInvoices);
+    }
+  }, [user]);
 
   const handlePaymentSuccess = async (invoiceId: string, method: 'card' | 'transfer' | 'cash') => {
     const res = await makePayment(invoiceId);

@@ -1,3 +1,6 @@
+// src/app/dashboard/layout.tsx
+"use client";
+
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -17,25 +20,42 @@ import {
   SidebarTrigger,
   SidebarInset,
 } from "@/components/ui/sidebar";
-import { getNotifications, getCurrentUser, signOut } from "@/lib/actions";
+import { getNotifications } from "@/lib/actions";
 import { DashboardNav } from "@/components/dashboard-nav";
-import { Briefcase, LogOut } from "lucide-react";
+import { Briefcase, LogOut, Loader2 } from "lucide-react";
 import { Chatbot } from "@/components/chatbot";
 import { NotificationBell } from "@/components/notification-bell";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import { useEffect, useState } from "react";
+import type { Notification as NotificationType } from "@/lib/data";
 
-export default async function DashboardLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const lawyerUser = await getCurrentUser();
-  if (!lawyerUser || lawyerUser.role !== 'lawyer') {
-    redirect('/login');
+  const { user, loading, signOut } = useAuth();
+  const router = useRouter();
+  const [notifications, setNotifications] = useState<NotificationType[]>([]);
+
+  useEffect(() => {
+    if (!loading && (!user || user.role !== 'lawyer')) {
+      router.push('/login');
+    }
+    if (user) {
+        getNotifications(user.id).then(setNotifications);
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) {
+    return (
+      <div className="flex min-h-screen w-full flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <p className="mt-2 text-muted-foreground">Chargement de l'espace avocat...</p>
+      </div>
+    );
   }
-
-  const lawyerNotifications = await getNotifications(lawyerUser.id);
-
 
   return (
     <SidebarProvider>
@@ -61,13 +81,13 @@ export default async function DashboardLayout({
                 {/* Search can be implemented later */}
               </div>
               <Chatbot />
-              <NotificationBell userId={lawyerUser.id} notifications={lawyerNotifications} />
+              <NotificationBell userId={user.id} notifications={notifications} />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="secondary" size="icon" className="rounded-full">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={lawyerUser.avatar} alt={lawyerUser.name} />
-                      <AvatarFallback>{lawyerUser.name.charAt(0)}</AvatarFallback>
+                      <AvatarImage src={user.avatar} alt={user.name} />
+                      <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <span className="sr-only">Toggle user menu</span>
                   </Button>
@@ -80,14 +100,10 @@ export default async function DashboardLayout({
                   </DropdownMenuItem>
                   <DropdownMenuItem>Support</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                   <form action={signOut}>
-                     <button type="submit" className="w-full">
-                       <DropdownMenuItem>
-                         <LogOut className="mr-2 h-4 w-4" />
-                         <span>Déconnexion</span>
-                       </DropdownMenuItem>
-                     </button>
-                   </form>
+                  <DropdownMenuItem onClick={signOut}>
+                     <LogOut className="mr-2 h-4 w-4" />
+                     <span>Déconnexion</span>
+                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </header>

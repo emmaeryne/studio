@@ -1,8 +1,7 @@
-
+// src/components/auth-dialog.tsx
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
-import { createSessionCookie, createUserProfile } from "@/lib/actions";
+import { createUserProfile } from "@/lib/actions";
 import { auth } from "@/lib/firebase";
 import {
   createUserWithEmailAndPassword,
@@ -47,7 +46,6 @@ export function AuthDialog({ role, isOpen, onClose }: AuthDialogProps) {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const { toast } = useToast();
-  const router = useRouter();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -64,21 +62,18 @@ export function AuthDialog({ role, isOpen, onClose }: AuthDialogProps) {
       const userCredential = await createUserWithEmailAndPassword(auth, validatedData.email, validatedData.password);
       const user = userCredential.user;
 
-      await sendEmailVerification(user);
-
+      // The profile creation is crucial for the AuthProvider to find the user's role.
       const profileResult = await createUserProfile(user.uid, validatedData.name, validatedData.email, role);
       if (!profileResult.success) throw new Error(profileResult.error);
-
-      const idToken = await user.getIdToken(true);
-      const sessionResult = await createSessionCookie(idToken);
-      if (!sessionResult.success) throw new Error(sessionResult.error);
-
+      
+      await sendEmailVerification(user);
+      
       toast({
         title: "Inscription réussie !",
-        description: "Un email de vérification a été envoyé. Vous allez être redirigé.",
+        description: "Un email de vérification a été envoyé. Vous allez être connecté.",
       });
 
-      router.push(role === "lawyer" ? "/dashboard" : "/client/dashboard");
+      // No need to redirect here. The AuthProvider will detect the new user and handle redirection automatically.
       onClose();
 
     } catch (error) {
@@ -113,28 +108,13 @@ export function AuthDialog({ role, isOpen, onClose }: AuthDialogProps) {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!role) return;
     setIsLoading(true);
     
     try {
         const validatedData = LoginSchema.parse(formData);
-        const userCredential = await signInWithEmailAndPassword(auth, validatedData.email, validatedData.password);
-        const user = userCredential.user;
-
-        const idToken = await user.getIdToken(true);
-        const sessionResult = await createSessionCookie(idToken);
-
-        if (!sessionResult.success) {
-            throw new Error(sessionResult.error);
-        }
-
-        toast({
-          title: "Connexion réussie",
-          description: "Vous allez être redirigé.",
-        });
+        await signInWithEmailAndPassword(auth, validatedData.email, validatedData.password);
         
-        const targetPath = role === "lawyer" ? "/dashboard" : "/client/dashboard";
-        router.push(targetPath);
+        // No need to redirect here. The AuthProvider will handle it.
         onClose();
 
     } catch (error) {
@@ -165,7 +145,6 @@ export function AuthDialog({ role, isOpen, onClose }: AuthDialogProps) {
         setIsLoading(false);
     }
   };
-
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
@@ -209,7 +188,7 @@ export function AuthDialog({ role, isOpen, onClose }: AuthDialogProps) {
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input id="login-password" name="password" type={showPassword ? "text" : "password"} placeholder="••••••••" value={formData.password} onChange={handleInputChange} required disabled={isLoading} className="pl-10 pr-10" />
                   <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowPassword(!showPassword)}>
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4 />}
                   </Button>
                 </div>
               </div>
@@ -240,7 +219,7 @@ export function AuthDialog({ role, isOpen, onClose }: AuthDialogProps) {
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input id="register-password" name="password" type={showPassword ? "text" : "password"} placeholder="8+ caractères" value={formData.password} onChange={handleInputChange} required disabled={isLoading} className="pl-10 pr-10" />
                    <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowPassword(!showPassword)}>
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4 />}
                   </Button>
                 </div>
               </div>
