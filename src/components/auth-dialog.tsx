@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -66,11 +67,11 @@ export const AuthDialog = ({ role, isOpen, onClose }: AuthDialogProps) => {
         throw new Error(profileResult.error || "La création du profil utilisateur a échoué.");
       }
       
-      await sendEmailVerification(user);
+      // await sendEmailVerification(user); // Email verification removed as requested
       
       toast({
         title: "Inscription réussie !",
-        description: "Un email de vérification a été envoyé. Vous allez être connecté.",
+        description: "Vous pouvez maintenant vous connecter.",
       });
       onClose();
     } catch (error) {
