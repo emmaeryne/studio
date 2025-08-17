@@ -1,20 +1,21 @@
-
+// src/app/client/messages/page.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { sendMessage, getClientConversations, getLawyerProfile, getCurrentUser, markConversationAsRead } from "@/lib/actions";
+import { sendMessage, getClientConversations, getLawyerProfile, markConversationAsRead } from "@/lib/actions";
 import { MessageList } from "@/components/MessageList";
 import { MessageView } from "@/components/MessageView";
-import { type Conversation, type Client, type Lawyer } from "@/lib/data";
+import { type Conversation, type Lawyer } from "@/lib/data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function ClientMessagesPage() {
-  const [clientUser, setClientUser] = useState<Client | null>(null);
+  const { user: clientUser, loading } = useAuth();
   const [lawyer, setLawyer] = useState<Lawyer | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | undefined>();
@@ -24,34 +25,33 @@ export default function ClientMessagesPage() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const fetchData = async () => {
-        const user = await getCurrentUser();
-        if (user && user.role === 'client') {
-            setClientUser(user as Client);
-            const clientConversations = await getClientConversations(user.id);
-            const lawyerProfile = await getLawyerProfile();
+    if (clientUser && clientUser.role === 'client') {
+      const fetchData = async () => {
+          const [clientConversations, lawyerProfile] = await Promise.all([
+            getClientConversations(clientUser.uid),
+            getLawyerProfile()
+          ]);
 
-            setLawyer(lawyerProfile);
-            setConversations(clientConversations);
+          setLawyer(lawyerProfile);
+          setConversations(clientConversations);
 
-            if (clientConversations.length > 0) {
-                const firstConvoId = clientConversations[0].id;
-                await handleSelectConversation(firstConvoId);
-            }
-        }
-    };
-    fetchData();
-  }, []);
+          if (clientConversations.length > 0) {
+              const firstConvoId = clientConversations[0].id;
+              await handleSelectConversation(firstConvoId);
+          }
+      };
+      fetchData();
+    }
+  }, [clientUser]);
 
   const handleSelectConversation = async (convoId: string) => {
       setSelectedConversationId(convoId);
       const conversation = conversations.find(c => c.id === convoId);
       if (conversation && conversation.unreadCount > 0 && clientUser) {
-          const success = await markConversationAsRead(convoId, clientUser.id);
+          const success = await markConversationAsRead(convoId, clientUser.uid);
           if (success) {
               setConversations(prev => {
                 const newConversations = prev.map(c => c.id === convoId ? {...c, unreadCount: 0} : c);
-                // Also update the specific conversation object
                 const updatedConvo = newConversations.find(c => c.id === convoId);
                 if (updatedConvo) {
                     updatedConvo.unreadCount = 0;
@@ -70,7 +70,7 @@ export default function ClientMessagesPage() {
     if (!newMessage.trim() || !selectedConversationId || !clientUser) return;
 
     try {
-      const sentMessage = await sendMessage(selectedConversationId, newMessage, clientUser.id);
+      const sentMessage = await sendMessage(selectedConversationId, newMessage, clientUser.uid);
       
       if (sentMessage.success && sentMessage.newMessage) {
         setConversations(prev => 
@@ -106,8 +106,13 @@ export default function ClientMessagesPage() {
     }
   }, [selectedConversation?.id, selectedConversation?.messages.length]);
   
-  if (!clientUser) {
-      return <div className="text-center p-8">Chargement de votre profil...</div>
+  if (loading) {
+      return (
+        <div className="flex h-[calc(100vh-8rem)] w-full flex-col items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <p className="mt-2 text-muted-foreground">Chargement de la messagerie...</p>
+        </div>
+      );
   }
 
   if (conversations.length === 0) {
@@ -124,7 +129,7 @@ export default function ClientMessagesPage() {
   }
 
   return (
-    <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 h-[calc(100vh-4rem)] flex flex-col">
+    <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 h-[calc(100vh-8rem)] flex flex-col">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl md:text-3xl font-headline font-bold">Messagerie</h1>
       </div>
@@ -146,13 +151,13 @@ export default function ClientMessagesPage() {
               conversations={conversations}
               selectedConversationId={selectedConversationId}
               onSelectConversation={handleSelectConversation}
-              currentUserId={clientUser.id}
+              currentUserId={clientUser!.uid}
               searchQuery={searchQuery}
             />
           </ScrollArea>
         </Card>
 
-        {selectedConversation && lawyer && (
+        {selectedConversation && lawyer && clientUser && (
           <Card className="md:col-span-2 lg:col-span-3 flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
               <div className="flex items-center gap-3">
@@ -173,7 +178,7 @@ export default function ClientMessagesPage() {
             <ScrollArea className="flex-1" ref={scrollAreaRef}>
               <MessageView
                 conversation={selectedConversation}
-                currentUserId={clientUser.id}
+                currentUserId={clientUser.uid}
                 currentUserAvatar={clientUser.avatar}
                 otherUserName={lawyer.name}
                 otherUserAvatar={lawyer.avatar}

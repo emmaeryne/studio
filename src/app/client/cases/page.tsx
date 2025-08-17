@@ -1,4 +1,7 @@
+// src/app/client/cases/page.tsx
+"use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Card,
@@ -8,19 +11,36 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, FileText, ArrowUpRight } from "lucide-react";
-import { getClientCases, getCurrentUser } from "@/lib/actions";
+import { PlusCircle, FileText, ArrowUpRight, Loader2 } from "lucide-react";
+import { getClientCases } from "@/lib/actions";
 import { Badge } from "@/components/ui/badge";
 import { AddClientCaseDialog } from "@/components/add-client-case-dialog";
-import { redirect } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import type { Case } from "@/lib/data";
 
-export default async function ClientCasesPage() {
-  const clientUser = await getCurrentUser();
-  if (!clientUser || clientUser.role !== 'client') {
-    redirect('/login');
+export default function ClientCasesPage() {
+  const { user, loading } = useAuth();
+  const [clientCases, setClientCases] = useState<Case[]>([]);
+  const [isDataLoading, setIsDataLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      setIsDataLoading(true);
+      getClientCases(user.uid).then((cases) => {
+        setClientCases(cases);
+        setIsDataLoading(false);
+      });
+    }
+  }, [user]);
+
+  if (loading || isDataLoading) {
+    return (
+      <div className="flex min-h-[calc(100vh-8rem)] w-full flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <p className="mt-2 text-muted-foreground">Chargement de vos affaires...</p>
+      </div>
+    );
   }
-
-  const clientCases = await getClientCases(clientUser.id);
 
   const getStatusVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
     switch (status) {

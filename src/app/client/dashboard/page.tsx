@@ -1,28 +1,28 @@
+// src/app/client/dashboard/page.tsx
+"use client";
 
-import Link from "next/link"
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   Activity,
   ArrowUpRight,
   Briefcase,
   DollarSign,
   MessageSquare,
-  Send
-} from "lucide-react"
+  Send,
+  Loader2,
+} from "lucide-react";
 
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -30,29 +30,69 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Input } from "@/components/ui/input"
-import { getClientCases, getClientConversations, getClientInvoices, getAppointments, getCurrentUser, getLawyerProfile } from "@/lib/actions"
-import { redirect } from "next/navigation"
+} from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import {
+  getClientCases,
+  getClientConversations,
+  getClientInvoices,
+  getAppointments,
+  getLawyerProfile,
+} from "@/lib/actions";
+import { useAuth } from "@/hooks/useAuth";
+import type { Case, Conversation, Invoice, Appointment, Lawyer, Client } from "@/lib/data";
 
-export default async function ClientDashboard() {
-  const clientUser = await getCurrentUser();
-  if (!clientUser || clientUser.role !== 'client') {
-    redirect('/login');
+export default function ClientDashboard() {
+  const { user, loading } = useAuth();
+  const [lawyerUser, setLawyerUser] = useState<Lawyer | null>(null);
+  const [clientCases, setClientCases] = useState<Case[]>([]);
+  const [clientConversations, setClientConversations] = useState<Conversation[]>([]);
+  const [clientInvoices, setClientInvoices] = useState<Invoice[]>([]);
+  const [allAppointments, setAllAppointments] = useState<(Appointment & { clientName: string })[]>([]);
+  const [isDataLoading, setIsDataLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      const fetchData = async () => {
+        setIsDataLoading(true);
+        const [
+          casesData,
+          convosData,
+          invoicesData,
+          appointmentsData,
+          lawyerData,
+        ] = await Promise.all([
+          getClientCases(user.uid),
+          getClientConversations(user.uid),
+          getClientInvoices(user.uid),
+          getAppointments(),
+          getLawyerProfile(),
+        ]);
+        setClientCases(casesData);
+        setClientConversations(convosData);
+        setClientInvoices(invoicesData);
+        setAllAppointments(appointmentsData);
+        setLawyerUser(lawyerData);
+        setIsDataLoading(false);
+      };
+      fetchData();
+    }
+  }, [user]);
+
+  if (loading || isDataLoading) {
+    return (
+      <div className="flex min-h-[calc(100vh-8rem)] w-full flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <p className="mt-2 text-muted-foreground">Chargement de votre tableau de bord...</p>
+      </div>
+    );
   }
-
-  const lawyerUser = await getLawyerProfile();
-  if (!lawyerUser) {
-      // Handle case where there's no lawyer, maybe show an error or a different state
-      return <p>Impossible de charger les informations de l'avocat.</p>;
-  }
-
-
-  const clientCases = await getClientCases(clientUser.id);
-  const clientConversations = await getClientConversations(clientUser.id);
-  const clientInvoices = await getClientInvoices(clientUser.id);
-  const allAppointments = await getAppointments();
   
+  if (!user) {
+      // AuthProvider in layout handles redirection, this is a fallback
+      return null;
+  }
+
   const clientAppointments = allAppointments.filter(app => {
       const caseExists = clientCases.some(c => c.id === app.caseId);
       return caseExists;
@@ -82,8 +122,8 @@ export default async function ClientDashboard() {
         ...msg,
         conversationId: conv.id,
         caseNumber: conv.caseNumber,
-        senderName: msg.senderId === lawyerUser.id ? lawyerUser.name : clientUser.name,
-        senderAvatar: msg.senderId === lawyerUser.id ? lawyerUser.avatar : clientUser.avatar,
+        senderName: msg.senderId === lawyerUser.id ? lawyerUser.name : user.name,
+        senderAvatar: msg.senderId === lawyerUser.id ? lawyerUser.avatar : user.avatar,
         isFromLawyer: msg.senderId === lawyerUser.id
       })))
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
@@ -101,7 +141,7 @@ export default async function ClientDashboard() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-3xl font-bold font-headline mb-1">
-          Bonjour {clientUser.name.split(' ')[0]} 👋
+          Bonjour {user.name.split(' ')[0]} 👋
         </h1>
         <p className="text-muted-foreground">Voici un aperçu de votre activité juridique</p>
       </div>

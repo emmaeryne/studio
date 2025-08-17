@@ -1,22 +1,22 @@
-
+// src/app/dashboard/messages/page.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { sendMessage, getConversations, getCurrentUser, getAllClients } from "@/lib/actions";
+import { sendMessage, getConversations, getAllClients } from "@/lib/actions";
 import { MessageList } from "@/components/MessageList";
 import { MessageView } from "@/components/MessageView";
 import { type Conversation, type Lawyer, type Client } from "@/lib/data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function LawyerMessagesPage() {
-  const [lawyer, setLawyer] = useState<Lawyer | null>(null);
+  const { user: lawyer, loading } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [allClients, setAllClients] = useState<Client[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | undefined>();
   const [newMessage, setNewMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -24,42 +24,40 @@ export default function LawyerMessagesPage() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
-    const fetchData = async () => {
-        const user = await getCurrentUser();
-        if (user && user.role === 'lawyer') {
-            setLawyer(user as Lawyer);
-            const [allConversations, clients] = await Promise.all([
-                getConversations(),
-                getAllClients()
-            ]);
+    if (lawyer && lawyer.role === 'lawyer') {
+      const fetchData = async () => {
+        const [allConversations, clients] = await Promise.all([
+            getConversations(),
+            getAllClients()
+        ]);
 
-            const mergedConversations = clients.map(client => {
-                const existingConvo = allConversations.find(c => c.clientId === client.id);
-                if (existingConvo) {
-                    return existingConvo;
-                }
-                // Create a placeholder conversation for clients without one
-                return {
-                    id: `client-${client.id}`, // Temporary unique ID
-                    caseId: '',
-                    caseNumber: 'N/A',
-                    clientId: client.id,
-                    clientName: client.name,
-                    clientAvatar: client.avatar,
-                    unreadCount: 0,
-                    messages: [],
-                };
-            });
-            
-            setConversations(mergedConversations);
-
-            if (mergedConversations.length > 0) {
-                setSelectedConversationId(mergedConversations[0].id);
+        const mergedConversations = clients.map(client => {
+            const existingConvo = allConversations.find(c => c.clientId === client.id);
+            if (existingConvo) {
+                return existingConvo;
             }
+            // Create a placeholder conversation for clients without one
+            return {
+                id: `client-${client.id}`, // Temporary unique ID
+                caseId: '',
+                caseNumber: 'N/A',
+                clientId: client.id,
+                clientName: client.name,
+                clientAvatar: client.avatar,
+                unreadCount: 0,
+                messages: [],
+            };
+        });
+        
+        setConversations(mergedConversations);
+
+        if (mergedConversations.length > 0) {
+            setSelectedConversationId(mergedConversations[0].id);
         }
+      }
+      fetchData();
     }
-    fetchData();
-  }, []);
+  }, [lawyer]);
 
   const selectedConversation = conversations.find(c => c.id === selectedConversationId);
 
@@ -71,7 +69,7 @@ export default function LawyerMessagesPage() {
       const isPlaceholder = selectedConversationId.startsWith('client-');
       const conversationToUse = isPlaceholder ? undefined : selectedConversationId;
 
-      const sentMessage = await sendMessage(conversationToUse, newMessage, lawyer.id, selectedConversation?.clientId);
+      const sentMessage = await sendMessage(conversationToUse, newMessage, lawyer.uid, selectedConversation?.clientId);
 
       if (sentMessage.success && sentMessage.newMessage) {
          setConversations(prev => 
@@ -110,8 +108,13 @@ export default function LawyerMessagesPage() {
     }
   }, [selectedConversation?.id, selectedConversation?.messages.length]);
 
-  if (!lawyer) {
-      return <div className="text-center p-8">Chargement de votre profil...</div>;
+  if (loading) {
+      return (
+        <div className="flex h-[calc(100vh-8rem)] w-full flex-col items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <p className="mt-2 text-muted-foreground">Chargement de la messagerie...</p>
+        </div>
+      );
   }
   
   if (conversations.length === 0) {
@@ -119,16 +122,14 @@ export default function LawyerMessagesPage() {
         <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 h-full flex flex-col items-center justify-center">
             <Card className="p-8 text-center">
                 <CardTitle className="font-headline text-xl">Aucun Client</CardTitle>
-                <CardContent className="pt-4">
-                    <p className="text-muted-foreground">Aucun client n'est encore enregistré dans la base de données.</p>
-                </CardContent>
+                <p className="text-muted-foreground pt-4">Aucun client n'est encore enregistré dans la base de données.</p>
             </Card>
         </div>
     )
   }
 
   return (
-    <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 h-[calc(100vh-4rem)] flex flex-col">
+    <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 h-[calc(100vh-8rem)] flex flex-col">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl md:text-3xl font-headline font-bold">Messagerie Professionnelle</h1>
       </div>
@@ -150,13 +151,13 @@ export default function LawyerMessagesPage() {
               conversations={conversations}
               selectedConversationId={selectedConversationId}
               onSelectConversation={setSelectedConversationId}
-              currentUserId={lawyer.id}
+              currentUserId={lawyer!.uid}
               searchQuery={searchQuery}
             />
           </ScrollArea>
         </Card>
 
-        {selectedConversation && (
+        {selectedConversation && lawyer && (
             <Card className="md:col-span-2 lg:col-span-3 flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
                 <div className="flex items-center gap-3">
@@ -177,7 +178,7 @@ export default function LawyerMessagesPage() {
             <ScrollArea className="flex-1" ref={scrollAreaRef}>
                 <MessageView
                 conversation={selectedConversation}
-                currentUserId={lawyer.id}
+                currentUserId={lawyer.uid}
                 currentUserAvatar={lawyer.avatar}
                 otherUserName={selectedConversation.clientName}
                 otherUserAvatar={selectedConversation.clientAvatar}
