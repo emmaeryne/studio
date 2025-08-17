@@ -2,7 +2,7 @@
 'use server'
 
 import { db } from './firebase';
-import { collection, getDocs, doc, addDoc, updateDoc, setDoc, getDoc, query, where, orderBy, writeBatch, Timestamp, limit, startAt } from 'firebase/firestore';
+import { collection, getDocs, doc, addDoc, updateDoc, setDoc, getDoc, query, where, orderBy, writeBatch, Timestamp, limit } from 'firebase/firestore';
 import { cookies } from 'next/headers';
 import { summarizeCaseDocuments } from '@/ai/flows/summarize-case-documents';
 import type { SummarizeCaseDocumentsInput } from '@/ai/flows/summarize-case-documents';
@@ -13,8 +13,9 @@ import type { EstimateCaseCostInput, EstimateCaseCostOutput } from '@/ai/flows/e
 import type { CaseDocument, Lawyer, Message, Client, Case, Appointment, Invoice, Conversation, Notification } from './data';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { adminAuth } from './firebase-admin';
 
-const SESSION_COOKIE_NAME = 'user_session';
+const SESSION_COOKIE_NAME = '__session';
 
 // Helper function to convert Firestore Timestamps to strings
 const convertTimestamps = (data: any) => {
@@ -33,122 +34,70 @@ const convertTimestamps = (data: any) => {
 
 // --- AUTH / SESSION ACTIONS ---
 
-export async function getCurrentUser(): Promise<(Client & { role: 'client' }) | (Lawyer & { role: 'lawyer' }) | null> {
-    const session = cookies().get(SESSION_COOKIE_NAME)?.value;
-    if (!session) return null;
+export async function createSessionCookie(idToken: string) {
+    const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
     try {
-        const { id, role } = JSON.parse(session);
-        const collectionName = role === 'lawyer' ? 'users' : 'clients';
-        const user = await getDocument<Client | Lawyer>(collectionName, id);
-        if (!user) {
-            await clearSession();
-            return null;
-        }
-        return { ...user, role } as (Client & { role: 'client' }) | (Lawyer & { role: 'lawyer' });
+        const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
+        cookies().set(SESSION_COOKIE_NAME, sessionCookie, {
+            maxAge: expiresIn,
+            httpOnly: true,
+            secure: true,
+            path: '/',
+        });
+        return { success: true };
     } catch (error) {
-        await clearSession();
+        console.error('Error creating session cookie:', error);
+        return { success: false, error: 'Failed to create session.' };
+    }
+}
+
+export async function signOut() {
+    cookies().set(SESSION_COOKIE_NAME, '', { expires: new Date(0) });
+    redirect('/login');
+}
+
+export async function getCurrentUser(): Promise<(Client & { role: 'client' }) | (Lawyer & { role: 'lawyer' }) | null> {
+    const sessionCookie = cookies().get(SESSION_COOKIE_NAME)?.value;
+    if (!sessionCookie) return null;
+
+    try {
+        const decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true);
+        const uid = decodedToken.uid;
+
+        // Check if user is a lawyer
+        let user = await getDocument<Lawyer>('users', uid);
+        if (user) return { ...user, role: 'lawyer' };
+
+        // Check if user is a client
+        user = await getDocument<Client>('clients', uid);
+        if (user) return { ...user, role: 'client' } as Client & { role: 'client' };
+
+        return null;
+    } catch (error) {
+        // Session cookie is invalid.
         return null;
     }
 }
 
+export async function createUserProfile(uid: string, name: string, email: string, role: 'client' | 'lawyer') {
+    const collectionName = role === 'lawyer' ? 'users' : 'clients';
+    const userDocRef = doc(db, collectionName, uid);
 
-async function createSession(user: { id: string, role: 'client' | 'lawyer' }) {
-    cookies().set(SESSION_COOKIE_NAME, JSON.stringify(user), {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 60 * 60 * 24 * 7, // One week
-        path: '/',
-    });
-}
+    const userProfile: Omit<Client | Lawyer, 'id'> = {
+        name,
+        email,
+        avatar: `https://placehold.co/100x100.png?text=${name.charAt(0)}`,
+        ...(role === 'lawyer' && { role: 'Avocat', specialty: 'Droit Général' }),
+    };
 
-export async function clearSession() {
-    cookies().set(SESSION_COOKIE_NAME, '', { expires: new Date(0) });
-}
-
-export async function registerUser(userData: { name: string; email: string; role: 'client' | 'lawyer' }) {
     try {
-        const { name, email, role } = userData;
-        const collectionName = role === 'lawyer' ? 'users' : 'clients';
-        
-        const q = query(collection(db, collectionName), where("email", "==", email));
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-            throw new Error('Cet email est déjà utilisé pour ce rôle.');
-        }
-
-        const newUserRef = doc(collection(db, collectionName));
-        const newUser: Omit<Client | Lawyer, 'id'> = {
-            name,
-            email,
-            avatar: `https://placehold.co/100x100.png?text=${name.charAt(0)}`,
-            ...(role === 'lawyer' && { role: 'Avocat', specialty: 'Droit Général' }),
-        };
-
-        await setDoc(newUserRef, newUser);
-        await createSession({ id: newUserRef.id, role });
-        
-    } catch (error) {
-        console.error("Error registering user: ", error);
-        // Re-throw the error to be caught by the client-side form handler
-        if (error instanceof Error) {
-            throw error;
-        }
-        throw new Error("La création du compte a échoué.");
-    }
-
-    // Redirect after successful registration and session creation
-    if (userData.role === 'lawyer') {
-        redirect('/dashboard');
-    } else {
-        redirect('/client/dashboard');
-    }
-}
-
-
-export async function loginUserByEmail(credentials: { email: string; password?: string; role: 'client' | 'lawyer' }) {
-    try {
-        const { email, role } = credentials;
-        const collectionName = role === 'lawyer' ? 'users' : 'clients';
-        const q = query(collection(db, collectionName), where("email", "==", email), limit(1));
-        const querySnapshot = await getDocs(q);
-
-        if (querySnapshot.empty) {
-            return { success: false, error: `Aucun compte trouvé pour l'email ${email} avec le rôle ${role}.` };
-        }
-
-        const userDoc = querySnapshot.docs[0];
-        const user = { id: userDoc.id, ...userDoc.data() };
-
-        await createSession({ id: user.id, role });
-        return { success: true, role };
-
-    } catch (error) {
-        console.error("Login error: ", error);
-        return { success: false, error: "Une erreur est survenue lors de la connexion." };
-    }
-}
-
-export async function quickLogin(role: 'lawyer' | 'client') {
-    try {
-        const collectionName = role === 'lawyer' ? 'users' : 'clients';
-        const q = query(collection(db, collectionName), limit(1));
-        const querySnapshot = await getDocs(q);
-
-        if (querySnapshot.empty) {
-             return { success: false, error: `Aucun utilisateur trouvé pour le rôle : ${role}` };
-        }
-
-        const userDoc = querySnapshot.docs[0];
-        await createSession({ id: userDoc.id, role });
-        
+        await setDoc(userDocRef, userProfile);
         return { success: true, role };
     } catch (error) {
-        console.error("Quick login error:", error);
-        return { success: false, error: "Erreur de connexion rapide." };
+        console.error('Error creating user profile in Firestore:', error);
+        return { success: false, error: 'Failed to save user profile.' };
     }
 }
-
 
 // Generic function to fetch a collection
 async function getCollection<T>(collectionName: string, q?: any): Promise<T[]> {
@@ -187,7 +136,6 @@ export async function getClientCases(clientId: string): Promise<Case[]> {
 
 // Helper function to create a conversation
 async function createConversation(caseData: { id: string, caseNumber: string, clientId: string, clientName: string, clientAvatar: string }) {
-    // Check if a conversation for this case already exists to avoid duplicates
     const convosCollection = collection(db, 'conversations');
     const q = query(convosCollection, where('caseId', '==', caseData.id));
     const querySnapshot = await getDocs(q);
@@ -216,6 +164,7 @@ export async function addCase(newCaseData: { clientName: string; caseType: Case[
         let client: Client;
 
         if (querySnapshot.empty) {
+            // This flow is less likely now with proper registration, but good as a fallback.
             const newClientRef = doc(collection(db, 'clients'));
             const newClientData: Omit<Client, 'id'> = {
                 name: newCaseData.clientName,
@@ -504,7 +453,8 @@ export async function getLawyerProfile(): Promise<Lawyer | null> {
     const q = query(collection(db, 'users'), limit(1));
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
-    return getDocument<Lawyer>('users', snapshot.docs[0].id);
+    const lawyerId = snapshot.docs[0].id;
+    return getDocument<Lawyer>('users', lawyerId);
 }
 
 export async function getAllClients(): Promise<Client[]> {
@@ -628,8 +578,6 @@ export async function sendMessage(conversationId: string | undefined, content: s
         const isClientSender = senderId === conversationData.clientId;
         
         let unreadCountUpdate = {};
-        // If client sends a message, it's unread for the lawyer (we don't track that here).
-        // If lawyer sends a message, it's unread for the client.
         if (!isClientSender) {
             unreadCountUpdate = { unreadCount: (conversationData.unreadCount || 0) + 1 }
         }
@@ -658,7 +606,6 @@ export async function markConversationAsRead(conversationId: string, currentUser
         if (conversationSnap.exists()) {
             const conversationData = conversationSnap.data() as Conversation;
             
-            // We only care about the client's unread count.
             if (currentUserId === conversationData.clientId) {
                 await updateDoc(conversationRef, {
                     unreadCount: 0
@@ -682,7 +629,6 @@ export async function getClientInvoices(clientId: string): Promise<Invoice[]> {
     const invoicesCollection = collection(db, 'invoices');
     const q = query(invoicesCollection, where('clientId', '==', clientId));
     const invoices = await getCollection<Invoice>('invoices', q);
-    // Sort manually to avoid needing a composite index
     return invoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
@@ -702,10 +648,8 @@ export async function createInvoice(data: {caseId: string; totalCost: number; fi
         }
         const caseData = caseSnap.data() as Case;
 
-        // 1. Update the case with financial info
         await updateDoc(caseRef, { totalCost, firstInstallment });
 
-        // 2. Create the invoice for the first installment
         const invoicesCollection = collection(db, 'invoices');
         const invoicesCountSnapshot = await getDocs(invoicesCollection);
         const nextInvoiceNumber = `FACT-${String(invoicesCountSnapshot.size + 1).padStart(4, '0')}`;
@@ -722,7 +666,6 @@ export async function createInvoice(data: {caseId: string; totalCost: number; fi
 
         await addDoc(invoicesCollection, newInvoice);
 
-        // 3. Notify the client
         await addDoc(collection(db, "notifications"), {
             userId: caseData.clientId,
             message: `Une nouvelle facture de ${firstInstallment.toFixed(2)}€ est disponible pour l'affaire ${caseData.caseNumber}.`,

@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -12,7 +13,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Briefcase, User, LogIn, PlusCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
@@ -24,262 +24,189 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { loginUserByEmail, quickLogin, registerUser } from "@/lib/actions";
-import { RegisterDialog } from "@/components/register-dialog";
+import { createSessionCookie, createUserProfile } from "@/lib/actions";
+import { auth } from "@/lib/firebase";
+import { 
+    createUserWithEmailAndPassword, 
+    signInWithEmailAndPassword,
+    sendEmailVerification
+} from "firebase/auth";
 
-const LoginSchema = z.object({
-  email: z.string().email("Adresse email invalide").min(1, "L'email est requis"),
-  password: z.string().min(1, "Le mot de passe est requis"),
+const RegisterSchema = z.object({
+  name: z.string().min(2, "Le nom est requis"),
+  email: z.string().email("Adresse email invalide"),
+  password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
   role: z.enum(["lawyer", "client"]),
 });
 
+const LoginSchema = z.object({
+  email: z.string().email("Adresse email invalide"),
+  password: z.string().min(1, "Le mot de passe est requis"),
+});
+
 export default function LoginPage() {
-  const [showLoginForm, setShowLoginForm] = useState<boolean>(false);
-  const [email, setEmail] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
-  const [role, setRole] = useState<"lawyer" | "client">("client");
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [formData, setFormData] = useState({ name: "", email: "", password: "", role: "client" as "client" | "lawyer" });
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const { toast } = useToast();
   const router = useRouter();
 
-  const handleQuickLogin = async (role: "lawyer" | "client") => {
-    setIsLoading(true);
-    const result = await quickLogin(role);
-    if (result.success && result.role) {
-      toast({
-        title: "Connexion réussie",
-        description: `Connexion en tant que ${role === "lawyer" ? "avocat" : "client"}.`,
-      });
-      router.push(result.role === "lawyer" ? "/dashboard" : "/client/dashboard");
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: result.error,
-      });
-    }
-    setIsLoading(false);
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
-  
-  const handleLoginSubmit = async (e: React.FormEvent) => {
+
+  const handleRoleChange = (value: "client" | "lawyer") => {
+    setFormData(prev => ({ ...prev, role: value }));
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const validatedData = LoginSchema.parse({ email, password, role });
-      const result = await loginUserByEmail(validatedData);
+      if (mode === "register") {
+        const validatedData = RegisterSchema.parse(formData);
+        const userCredential = await createUserWithEmailAndPassword(auth, validatedData.email, validatedData.password);
+        const user = userCredential.user;
+        
+        // Send verification email (optional but recommended)
+        await sendEmailVerification(user);
+        
+        // Create user profile in Firestore
+        await createUserProfile(user.uid, validatedData.name, validatedData.email, validatedData.role);
 
-      if (result.success && result.role) {
+        // Get ID token and create session
+        const idToken = await user.getIdToken(true);
+        await createSessionCookie(idToken);
+        
+        toast({
+          title: "Inscription réussie !",
+          description: "Un email de vérification a été envoyé. Vous allez être redirigé.",
+        });
+
+        router.push(validatedData.role === "lawyer" ? "/dashboard" : "/client/dashboard");
+
+      } else { // Login mode
+        const validatedData = LoginSchema.parse(formData);
+        const userCredential = await signInWithEmailAndPassword(auth, validatedData.email, validatedData.password);
+        const user = userCredential.user;
+
+        // Get ID token and create session
+        const idToken = await user.getIdToken(true);
+        const sessionResult = await createSessionCookie(idToken);
+        if (!sessionResult.success) throw new Error(sessionResult.error);
+
         toast({
           title: "Connexion réussie",
-          description: `Connexion en tant que ${role === "lawyer" ? "avocat" : "client"}.`,
+          description: "Vous allez être redirigé.",
         });
-        router.push(result.role === 'lawyer' ? '/dashboard' : '/client/dashboard');
-      } else {
-        throw new Error(result.error);
+        
+        // We don't know the role on the client, so we redirect and let the middleware/layout handle it.
+        // A temporary redirect to a generic loading page might be good here in a real app.
+        router.push('/dashboard'); // Let middleware sort out lawyer vs client
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof z.ZodError
-          ? error.errors[0].message
-          : (error as Error).message || "Échec de la connexion. Veuillez réessayer.";
-      toast({
+        let errorMessage = "Une erreur est survenue.";
+        if (error instanceof z.ZodError) {
+            errorMessage = error.errors[0].message;
+        } else if (error instanceof Error && 'code' in error) {
+            switch ((error as any).code) {
+                case 'auth/email-already-in-use':
+                    errorMessage = 'Cette adresse email est déjà utilisée.';
+                    break;
+                case 'auth/wrong-password':
+                case 'auth/user-not-found':
+                     errorMessage = 'Email ou mot de passe incorrect.';
+                     break;
+                default:
+                     errorMessage = 'Erreur d\'authentification.';
+            }
+        }
+       toast({
         variant: "destructive",
         title: "Erreur",
         description: errorMessage,
       });
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <>
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-background to-accent/10 px-4 sm:px-6 lg:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="w-full max-w-md"
-        >
-          <Card className="shadow-lg border border-accent/20">
-            <CardHeader className="text-center pt-6 items-center">
-              <CardTitle className="text-2xl md:text-3xl font-headline font-bold pt-4">
-                Bienvenue sur AvocatConnect
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Sélectionnez votre profil ou connectez-vous pour continuer.
-              </CardDescription>
-              <hr className="mt-4 border-accent/20 w-full" />
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <AnimatePresence>
-                {!showLoginForm ? (
-                  <motion.div
-                    key="role-selection"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="grid gap-4"
-                  >
-                    <Button
-                      size="lg"
-                      className="w-full font-semibold bg-primary hover:bg-primary/90 hover:scale-105 transition-all duration-200"
-                      disabled={isLoading}
-                      onClick={() => handleQuickLogin("lawyer")}
-                      aria-label="Se connecter en tant qu'avocat"
-                    >
-                      <Briefcase className="mr-2 h-5 w-5" />
-                      Espace Avocat
-                    </Button>
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className="w-full font-semibold hover:bg-accent/10 hover:scale-105 transition-all duration-200"
-                      disabled={isLoading}
-                      onClick={() => handleQuickLogin("client")}
-                      aria-label="Se connecter en tant que client"
-                    >
-                      <User className="mr-2 h-5 w-5" />
-                      Espace Client
-                    </Button>
-                    <div className="flex justify-center items-center gap-2">
-                        <Button
-                        variant="link"
-                        className="text-sm text-primary hover:underline"
-                        onClick={() => setShowLoginForm(true)}
-                        aria-label="Afficher le formulaire de connexion"
-                        disabled={isLoading}
-                        >
-                        Connexion avec email
-                        </Button>
-                        <span className="text-muted-foreground">ou</span>
-                         <RegisterDialog>
-                            <Button variant="link" className="text-sm text-primary hover:underline p-0">
-                                Créer un compte
-                            </Button>
-                        </RegisterDialog>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.form
-                    key="login-form"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="grid gap-4"
-                    onSubmit={handleLoginSubmit}
-                  >
-                     <div className="grid gap-2">
-                      <Label htmlFor="role" className="font-semibold">
-                        Rôle
-                      </Label>
-                      <Select value={role} onValueChange={(value) => setRole(value as "lawyer" | "client")}>
-                        <SelectTrigger id="role" aria-label="Sélectionner votre rôle">
-                          <SelectValue placeholder="Sélectionner un rôle" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="lawyer">Avocat</SelectItem>
-                          <SelectItem value="client">Client</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-background to-accent/10 px-4 sm:px-6 lg:px-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md"
+      >
+        <Card className="shadow-lg border border-accent/20">
+          <CardHeader className="text-center pt-6 items-center">
+            <CardTitle className="text-2xl md:text-3xl font-headline font-bold pt-4">
+              Bienvenue sur AvocatConnect
+            </CardTitle>
+            <CardDescription className="text-muted-foreground">
+              {mode === 'login' ? 'Connectez-vous à votre compte.' : 'Créez un nouveau compte.'}
+            </CardDescription>
+            <hr className="mt-4 border-accent/20 w-full" />
+          </CardHeader>
+          <CardContent>
+            <AnimatePresence mode="wait">
+              <motion.form
+                key={mode}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+                className="grid gap-4"
+                onSubmit={handleFormSubmit}
+              >
+                {mode === "register" && (
                     <div className="grid gap-2">
-                      <Label htmlFor="email" className="font-semibold">
-                        Email
-                      </Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="votre@email.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        aria-required="true"
-                        disabled={isLoading}
-                      />
+                        <Label htmlFor="name">Nom complet</Label>
+                        <Input id="name" name="name" value={formData.name} onChange={handleInputChange} required disabled={isLoading} />
                     </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="password" className="font-semibold">
-                        Mot de passe
-                      </Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        aria-required="true"
-                        disabled={isLoading}
-                      />
-                    </div>
-                    <Button
-                      type="submit"
-                      size="lg"
-                      className="w-full font-semibold hover:scale-105 transition-all duration-200"
-                      disabled={isLoading || !email.trim() || !password.trim()}
-                      aria-label="Se connecter"
-                    >
-                      {isLoading ? (
-                        <span className="flex items-center">
-                          <svg
-                            className="animate-spin mr-2 h-5 w-5"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            />
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
-                            />
-                          </svg>
-                          Connexion...
-                        </span>
-                      ) : (
-                        <>
-                          <LogIn className="mr-2 h-5 w-5" />
-                          Se connecter
-                        </>
-                      )}
-                    </Button>
-                    <div className="flex justify-between">
-                      <Button
-                        variant="link"
-                        className="text-sm text-primary hover:underline"
-                        onClick={() => setShowLoginForm(false)}
-                        aria-label="Retour à la sélection du profil"
-                        disabled={isLoading}
-                      >
-                        Retour à la sélection du profil
-                      </Button>
-                       <RegisterDialog>
-                            <Button variant="link" className="text-sm text-primary hover:underline p-0 h-auto">
-                                <PlusCircle className="mr-1 h-4 w-4" /> Créer un compte
-                            </Button>
-                        </RegisterDialog>
-                    </div>
-                  </motion.form>
                 )}
-              </AnimatePresence>
-            </CardContent>
-          </Card>
-           <p className="text-center text-xs text-muted-foreground mt-4">
-              Développé par Emna Awini
-            </p>
-        </motion.div>
-      </div>
-    </>
+                <div className="grid gap-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" name="email" type="email" placeholder="votre@email.com" value={formData.email} onChange={handleInputChange} required disabled={isLoading} />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="password">Mot de passe</Label>
+                  <Input id="password" name="password" type="password" placeholder="••••••••" value={formData.password} onChange={handleInputChange} required disabled={isLoading} />
+                </div>
+                {mode === "register" && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="role">Je suis un</Label>
+                    <Select name="role" required value={formData.role} onValueChange={handleRoleChange} disabled={isLoading}>
+                      <SelectTrigger id="role">
+                        <SelectValue placeholder="Sélectionner un rôle" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="client">Client</SelectItem>
+                        <SelectItem value="lawyer">Avocat</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <Button type="submit" size="lg" className="w-full font-semibold" disabled={isLoading}>
+                  {isLoading ? "Chargement..." : (mode === "login" ? "Se connecter" : "Créer le compte")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="link"
+                  className="text-sm text-primary hover:underline"
+                  onClick={() => setMode(mode === "login" ? "register" : "login")}
+                  disabled={isLoading}
+                >
+                  {mode === "login" ? "Pas encore de compte ? S'inscrire" : "Déjà un compte ? Se connecter"}
+                </Button>
+              </motion.form>
+            </AnimatePresence>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </div>
   );
 }

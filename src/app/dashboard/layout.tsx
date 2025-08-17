@@ -17,9 +17,9 @@ import {
   SidebarTrigger,
   SidebarInset,
 } from "@/components/ui/sidebar";
-import { getNotifications, getCurrentUser } from "@/lib/actions";
+import { getNotifications, getCurrentUser, signOut } from "@/lib/actions";
 import { DashboardNav } from "@/components/dashboard-nav";
-import { Briefcase } from "lucide-react";
+import { Briefcase, LogOut } from "lucide-react";
 import { Chatbot } from "@/components/chatbot";
 import { NotificationBell } from "@/components/notification-bell";
 import { redirect } from "next/navigation";
@@ -81,9 +81,14 @@ export default async function DashboardLayout({
                   </DropdownMenuItem>
                   <DropdownMenuItem>Support</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                   <DropdownMenuItem asChild>
-                    <Link href="/login">Changer d'utilisateur</Link>
-                  </DropdownMenuItem>
+                   <form action={signOut}>
+                     <button type="submit" className="w-full">
+                       <DropdownMenuItem>
+                         <LogOut className="mr-2 h-4 w-4" />
+                         <span>Déconnexion</span>
+                       </DropdownMenuItem>
+                     </button>
+                   </form>
                 </DropdownMenuContent>
               </DropdownMenu>
             </header>

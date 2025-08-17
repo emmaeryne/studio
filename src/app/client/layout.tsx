@@ -9,11 +9,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getClientCases, getNotifications, getCurrentUser } from "@/lib/actions";
+import { getClientCases, getNotifications, getCurrentUser, signOut } from "@/lib/actions";
 import { Chatbot } from "@/components/chatbot";
 import { RequestAppointmentDialog } from "@/components/request-appointment-dialog";
 import { NotificationBell } from "@/components/notification-bell";
-import { Briefcase } from "lucide-react";
+import { Briefcase, LogOut } from "lucide-react";
 import { redirect } from "next/navigation";
 
 export default async function ClientLayout({
@@ -89,9 +89,14 @@ export default async function ClientLayout({
                 <Link href="/client/payments">Paiements</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/login">Changer d'utilisateur</Link>
-              </DropdownMenuItem>
+               <form action={signOut}>
+                  <button type="submit" className="w-full">
+                    <DropdownMenuItem>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Déconnexion</span>
+                    </DropdownMenuItem>
+                  </button>
+                </form>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

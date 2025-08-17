@@ -1,5 +1,6 @@
 // This file now only contains type definitions. 
-// The data is fetched from Firebase Firestore.
+
+import { Timestamp } from "firebase/firestore";
 
 export type CaseDocument = {
   name: string;
@@ -48,7 +49,7 @@ export type CaseCostEstimate = {
 
 export type Message = {
     id: string;
-    senderId: string; // email
+    senderId: string; // Firebase UID
     content: string;
     timestamp: string;
     read?: boolean;
@@ -66,7 +67,7 @@ export type Conversation = {
 };
 
 export type Lawyer = {
-    id: string; // Using email as ID for simplicity
+    id: string; // Firebase UID
     name:string;
     email: string;
     role: string;
@@ -76,7 +77,7 @@ export type Lawyer = {
 }
 
 export type Client = {
-    id: string;
+    id: string; // Firebase UID
     name: string;
     email: string;
     avatar: string;
@@ -102,34 +103,3 @@ export type Invoice = {
   amount: number;
   status: 'Payée' | 'En attente';
 }
-
-// Mock user data for demonstration purposes of a logged-in user.
-// In a real app, this would come from an authentication context.
-export const staticUserData = {
-    lawyer: {
-        id: 'm.dupont@cabinet-legal.fr',
-        name: 'Maître Dupont',
-        email: 'm.dupont@cabinet-legal.fr',
-        role: 'Avocat',
-        avatar: 'https://placehold.co/100x100.png',
-    },
-    clients: [
-      {
-        id: 'client-alice',
-        name: 'Alice Martin',
-        email: 'alice.martin@email.com',
-        avatar: 'https://placehold.co/100x100.png?text=AM',
-        address: '123 Rue de la Paix, 75001 Paris',
-        phone: '06 12 34 56 78'
-      }
-    ],
-    // We can imagine a login system would set the current user
-    currentUser: {
-        id: 'client-alice',
-        name: 'Alice Martin',
-        email: 'alice.martin@email.com',
-        avatar: 'https://placehold.co/100x100.png?text=AM',
-        address: '123 Rue de la Paix, 75001 Paris',
-        phone: '06 12 34 56 78'
-    }, 
-};

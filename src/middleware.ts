@@ -1,38 +1,44 @@
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { adminAuth } from './lib/firebase-admin';
 
-const SESSION_COOKIE_NAME = 'user_session';
+const SESSION_COOKIE_NAME = '__session';
 
-export function middleware(request: NextRequest) {
-  const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+async function verifySession(request: NextRequest) {
+    const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+    if (!sessionCookie) {
+        return null;
+    }
+    try {
+        const decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true);
+        return decodedToken;
+    } catch (error) {
+        return null;
+    }
+}
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow access to the login page regardless of authentication status
-  if (pathname === '/login') {
+  // Allow access to the login page always
+  if (pathname.startsWith('/login')) {
     return NextResponse.next();
   }
 
-  // If no session cookie, redirect to login page for any protected route
-  if (!sessionCookie) {
-    return NextResponse.redirect(new URL('/login', request.url));
+  const decodedToken = await verifySession(request);
+
+  // If no valid session, redirect to login for any protected route
+  if (!decodedToken) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
   }
   
-  try {
-    const session = JSON.parse(sessionCookie);
-    const { role } = session;
-
-    // If logged in, prevent access to the wrong dashboard
-    if (role === 'lawyer' && !pathname.startsWith('/dashboard')) {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-    if (role === 'client' && !pathname.startsWith('/client')) {
-        return NextResponse.redirect(new URL('/client/dashboard', request.url));
-    }
-  } catch (error) {
-    // If cookie is invalid, redirect to login
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
+  // The user's role needs to be fetched from Firestore, which is slow for middleware.
+  // For now, we allow access if they are logged in. We'll rely on server components
+  // and layouts to perform role-based redirects.
+  // A more advanced implementation might store the role in the custom token.
 
   return NextResponse.next();
 }
@@ -45,7 +51,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - login (the login page itself)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|login).*)',
   ],
 }
