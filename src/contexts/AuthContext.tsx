@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut as firebaseSignOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
@@ -56,9 +56,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                         role: role
                     });
                 } else {
-                    // Profile doesn't exist yet, which can happen for a brief moment after registration.
-                    // Or it's a login for a user whose profile creation failed.
-                    console.error("User profile not found in Firestore.");
+                    console.error("User profile not found in Firestore for UID:", firebaseUser.uid);
                     setUser(null);
                 }
             } else {
@@ -72,7 +70,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
     
     const signOut = async () => {
-        await auth.signOut();
+        await firebaseSignOut(auth);
         router.push('/login');
     };
 

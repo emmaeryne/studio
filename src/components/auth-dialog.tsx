@@ -41,7 +41,7 @@ const LoginSchema = z.object({
   password: z.string().min(1, "Le mot de passe est requis"),
 });
 
-export function AuthDialog({ role, isOpen, onClose }: AuthDialogProps) {
+export const AuthDialog = ({ role, isOpen, onClose }: AuthDialogProps) => {
   const [formData, setFormData] = useState({ name: "", email: "", password: "" });
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -62,9 +62,10 @@ export function AuthDialog({ role, isOpen, onClose }: AuthDialogProps) {
       const userCredential = await createUserWithEmailAndPassword(auth, validatedData.email, validatedData.password);
       const user = userCredential.user;
 
-      // The profile creation is crucial for the AuthProvider to find the user's role.
       const profileResult = await createUserProfile(user.uid, validatedData.name, validatedData.email, role);
-      if (!profileResult.success) throw new Error(profileResult.error);
+      if (!profileResult.success) {
+        throw new Error(profileResult.error || "La création du profil utilisateur a échoué.");
+      }
       
       await sendEmailVerification(user);
       
@@ -72,10 +73,7 @@ export function AuthDialog({ role, isOpen, onClose }: AuthDialogProps) {
         title: "Inscription réussie !",
         description: "Un email de vérification a été envoyé. Vous allez être connecté.",
       });
-
-      // No need to redirect here. The AuthProvider will detect the new user and handle redirection automatically.
       onClose();
-
     } catch (error) {
       let errorMessage = "Une erreur est survenue. Veuillez réessayer.";
       if (error instanceof z.ZodError) {
@@ -113,10 +111,7 @@ export function AuthDialog({ role, isOpen, onClose }: AuthDialogProps) {
     try {
         const validatedData = LoginSchema.parse(formData);
         await signInWithEmailAndPassword(auth, validatedData.email, validatedData.password);
-        
-        // No need to redirect here. The AuthProvider will handle it.
         onClose();
-
     } catch (error) {
        let errorMessage = "Une erreur est survenue. Veuillez réessayer.";
        if (error instanceof z.ZodError) {
@@ -203,7 +198,7 @@ export function AuthDialog({ role, isOpen, onClose }: AuthDialogProps) {
                 <Label htmlFor="register-name">Nom complet</Label>
                  <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="register-name" name="name" value={formData.name} onChange={handleInputChange} required disabled={isLoading} className="pl-10" />
+                  <Input id="register-name" name="name" placeholder="Nom Prénom" value={formData.name} onChange={handleInputChange} required disabled={isLoading} className="pl-10" />
                 </div>
               </div>
               <div className="space-y-2">
@@ -232,4 +227,4 @@ export function AuthDialog({ role, isOpen, onClose }: AuthDialogProps) {
       </DialogContent>
     </Dialog>
   );
-}
+};

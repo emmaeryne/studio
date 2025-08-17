@@ -27,11 +27,7 @@ const convertTimestamps = (data: any) => {
     return newData;
 };
 
-// --- AUTH / SESSION ACTIONS ---
-
-// NOTE: All server-side session logic (createSessionCookie, getCurrentUser, signOut) has been removed
-// in favor of a purely client-side authentication model to resolve environmental issues.
-
+// --- AUTH / PROFILE ACTIONS ---
 export async function createUserProfile(uid: string, name: string, email: string, role: 'client' | 'lawyer') {
     const collectionName = role === 'lawyer' ? 'users' : 'clients';
     const userDocRef = doc(db, collectionName, uid);
@@ -51,6 +47,7 @@ export async function createUserProfile(uid: string, name: string, email: string
         return { success: false, error: 'Failed to save user profile.' };
     }
 }
+
 
 // Generic function to fetch a collection
 async function getCollection<T>(collectionName: string, q?: any): Promise<T[]> {
@@ -117,7 +114,6 @@ export async function addCase(newCaseData: { clientName: string; caseType: Case[
         let client: Client;
 
         if (querySnapshot.empty) {
-            // This flow is less likely now with proper registration, but good as a fallback.
             const newClientRef = doc(collection(db, 'clients'));
             const newClientData: Omit<Client, 'id'> = {
                 name: newCaseData.clientName,
@@ -402,10 +398,6 @@ export async function getAllClients(): Promise<Client[]> {
     return getCollection<Client>('clients');
 }
 
-export async function getClientProfile(id: string): Promise<Client | null> {
-    return getDocument<Client>('clients', id);
-}
-
 export async function updateLawyerProfile(lawyerId: string, updatedLawyer: Omit<Lawyer, 'id'>) {
     try {
         const lawyerRef = doc(db, "users", lawyerId);
@@ -424,7 +416,6 @@ export async function updateClientProfile(clientId: string, updatedClient: Omit<
         const clientRef = doc(db, "clients", clientId);
         await setDoc(clientRef, updatedClient, { merge: true });
 
-        // Update name in cases
         const casesQuery = query(collection(db, 'cases'), where('clientId', '==', clientId));
         const casesSnapshot = await getDocs(casesQuery);
         const batch = writeBatch(db);
@@ -458,12 +449,10 @@ export async function sendMessage(conversationId: string | undefined, content: s
         let conversationRef;
         let finalConversationId = conversationId;
 
-        // This block handles creating a new conversation from the lawyer's side
         if (!conversationId && clientId) {
              const client = await getDocument<Client>('clients', clientId);
              if (!client) return { success: false, error: "Client not found." };
             
-             // Check if a general conversation already exists
              const existingConvoQuery = query(
                 collection(db, 'conversations'),
                 where('clientId', '==', clientId),
@@ -473,12 +462,12 @@ export async function sendMessage(conversationId: string | undefined, content: s
 
              if(existingConvoSnap.empty) {
                 const newConversationData: Omit<Conversation, 'id'> = {
-                    caseId: '', // No specific case yet
+                    caseId: '',
                     caseNumber: 'Discussion générale',
                     clientId: client.id,
                     clientName: client.name,
                     clientAvatar: client.avatar,
-                    unreadCount: 1, // Unread for the client
+                    unreadCount: 1,
                     messages: [],
                 };
                 const newDocRef = await addDoc(collection(db, 'conversations'), newConversationData);
@@ -655,27 +644,7 @@ export async function getNotifications(userId: string): Promise<Notification[]> 
     return getCollection<Notification>('notifications', q);
 }
 
-export async function markNotificationAsRead(notificationId: string) {
-    const notifRef = doc(db, 'notifications', notificationId);
-    await updateDoc(notifRef, { read: true });
-    revalidatePath('/client/layout');
-    revalidatePath('/dashboard/layout');
-}
-
-export async function markAllNotificationsAsRead(userId: string) {
-    const notifsQuery = query(collection(db, 'notifications'), where('userId', '==', userId), where('read', '==', false));
-    const notifsSnapshot = await getDocs(notifsQuery);
-    const batch = writeBatch(db);
-    notifsSnapshot.docs.forEach(doc => {
-        batch.update(doc.ref, { read: true });
-    });
-    await batch.commit();
-    revalidatePath('/client/layout');
-    revalidatePath('/dashboard/layout');
-}
-
-
-// --- AI Actions (no change needed) ---
+// --- AI Actions ---
 
 export async function getSummary(input: SummarizeCaseDocumentsInput) {
   try {
