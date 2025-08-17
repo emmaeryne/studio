@@ -51,7 +51,7 @@ export function LoginClientPage() {
               Bienvenue sur AvocatConnect
             </h1>
             <p className="text-muted-foreground mt-2 text-lg">
-              Votre plateforme juridique simplifiée.
+              La solution digitale pour une gestion juridique efficace.
             </p>
           </div>
 
