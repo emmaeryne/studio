@@ -31,39 +31,52 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
             if (firebaseUser) {
-                // User is signed in, now fetch their profile to get the role
-                let userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-                let role: 'lawyer' | 'client' | null = null;
-                let userData;
+                // Add a retry mechanism to handle the race condition between auth creation and Firestore profile creation.
+                const fetchUserProfile = async (retries = 3, delay = 500) => {
+                    for (let i = 0; i < retries; i++) {
+                        let userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+                        let role: 'lawyer' | 'client' | null = null;
+                        let userData;
 
-                if (userDoc.exists()) {
-                    role = 'lawyer';
-                    userData = userDoc.data();
-                } else {
-                    userDoc = await getDoc(doc(db, 'clients', firebaseUser.uid));
-                    if (userDoc.exists()) {
-                        role = 'client';
-                        userData = userDoc.data();
+                        if (userDoc.exists()) {
+                            role = 'lawyer';
+                            userData = userDoc.data();
+                        } else {
+                            userDoc = await getDoc(doc(db, 'clients', firebaseUser.uid));
+                            if (userDoc.exists()) {
+                                role = 'client';
+                                userData = userDoc.data();
+                            }
+                        }
+
+                        if (role && userData) {
+                            setUser({
+                                uid: firebaseUser.uid,
+                                email: firebaseUser.email,
+                                name: userData.name,
+                                avatar: userData.avatar,
+                                role: role
+                            });
+                            setLoading(false);
+                            return; // Success, exit the function
+                        }
+                        
+                        // If not found, wait for the next retry
+                        await new Promise(res => setTimeout(res, delay));
                     }
-                }
 
-                if (role && userData) {
-                    setUser({
-                        uid: firebaseUser.uid,
-                        email: firebaseUser.email,
-                        name: userData.name,
-                        avatar: userData.avatar,
-                        role: role
-                    });
-                } else {
+                    // If still not found after all retries
                     console.error("User profile not found in Firestore for UID:", firebaseUser.uid);
                     setUser(null);
-                }
+                    setLoading(false);
+                };
+                
+                await fetchUserProfile();
             } else {
                 // User is signed out
                 setUser(null);
+                setLoading(false);
             }
-            setLoading(false);
         });
 
         return () => unsubscribe();
