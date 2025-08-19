@@ -37,6 +37,7 @@ export async function createUserProfile(uid: string, name: string, email: string
         email,
         avatar: `https://placehold.co/100x100.png?text=${name.charAt(0)}`,
         ...(role === 'lawyer' && { role: 'Avocat', specialty: 'Droit Général' }),
+        ...(role === 'client' && { lawyerId: '' }),
     };
 
     try {
@@ -396,6 +397,22 @@ export async function getLawyerProfile(): Promise<Lawyer | null> {
 
 export async function getAllClients(): Promise<Client[]> {
     return getCollection<Client>('clients');
+}
+
+export async function getAllLawyers(): Promise<Lawyer[]> {
+    return getCollection<Lawyer>('users');
+}
+
+export async function selectClientLawyer(clientId: string, lawyerId: string) {
+    try {
+        const clientRef = doc(db, "clients", clientId);
+        await updateDoc(clientRef, { lawyerId: lawyerId });
+        revalidatePath('/client/dashboard');
+        return { success: true };
+    } catch(error) {
+        console.error("Error selecting lawyer:", error);
+        return { success: false, error: "Failed to select lawyer." };
+    }
 }
 
 export async function updateLawyerProfile(lawyerId: string, updatedLawyer: Omit<Lawyer, 'id'>) {

@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Activity,
   ArrowUpRight,
@@ -44,12 +45,19 @@ import type { Case, Conversation, Invoice, Appointment, Lawyer, Client } from "@
 
 export default function ClientDashboard() {
   const { user, loading } = useAuth();
+  const router = useRouter();
   const [lawyerUser, setLawyerUser] = useState<Lawyer | null>(null);
   const [clientCases, setClientCases] = useState<Case[]>([]);
   const [clientConversations, setClientConversations] = useState<Conversation[]>([]);
   const [clientInvoices, setClientInvoices] = useState<Invoice[]>([]);
   const [allAppointments, setAllAppointments] = useState<(Appointment & { clientName: string })[]>([]);
   const [isDataLoading, setIsDataLoading] = useState(true);
+
+  useEffect(() => {
+    if (!loading && user && user.role === 'client' && !user.lawyerId) {
+      router.push('/client/select-lawyer');
+    }
+  }, [user, loading, router]);
 
   useEffect(() => {
     if (user) {
@@ -66,7 +74,7 @@ export default function ClientDashboard() {
           getClientConversations(user.uid),
           getClientInvoices(user.uid),
           getAppointments(),
-          getLawyerProfile(),
+          getLawyerProfile(), // This will need to change in Phase 2 to get the assigned lawyer
         ]);
         setClientCases(casesData);
         setClientConversations(convosData);
@@ -79,7 +87,7 @@ export default function ClientDashboard() {
     }
   }, [user]);
 
-  if (loading || isDataLoading) {
+  if (loading || isDataLoading || (user && !user.lawyerId)) {
     return (
       <div className="flex min-h-[calc(100vh-8rem)] w-full flex-col items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />

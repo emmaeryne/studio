@@ -13,6 +13,7 @@ interface AuthUser {
     name: string;
     avatar: string;
     role: 'client' | 'lawyer';
+    lawyerId?: string;
 }
 
 interface AuthContextType {
@@ -55,7 +56,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                                 email: firebaseUser.email,
                                 name: userData.name,
                                 avatar: userData.avatar,
-                                role: role
+                                role: role,
+                                lawyerId: userData.lawyerId,
                             });
                             setLoading(false);
                             return; // Success, exit the function

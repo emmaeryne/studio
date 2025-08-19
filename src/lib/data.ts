@@ -83,6 +83,7 @@ export type Client = {
     avatar: string;
     address?: string;
     phone?: string;
+    lawyerId?: string; // ID of the associated lawyer
 };
 
 export type Notification = {
