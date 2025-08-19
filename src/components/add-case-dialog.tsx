@@ -19,14 +19,29 @@ import { useToast } from '@/hooks/use-toast';
 import { addCase } from '@/lib/actions';
 import { useRouter } from 'next/navigation';
 import type { Case } from '@/lib/data';
+import { useAuth } from '@/hooks/useAuth';
+import { Loader2 } from 'lucide-react';
 
 export function AddCaseDialog({ children, onCaseAdded }: { children: React.ReactNode, onCaseAdded: (newCase: Case) => void }) {
   const [open, setOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const { user } = useAuth();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (!user) {
+      toast({
+        variant: 'destructive',
+        title: 'Erreur',
+        description: 'Vous devez être connecté pour ajouter une affaire.',
+      });
+      return;
+    }
+
+    setIsLoading(true);
     const formData = new FormData(event.currentTarget);
     const newCaseData = {
       clientName: formData.get('clientName') as string,
@@ -40,11 +55,12 @@ export function AddCaseDialog({ children, onCaseAdded }: { children: React.React
             title: 'Champs requis',
             description: 'Veuillez remplir tous les champs obligatoires.',
         });
+        setIsLoading(false);
         return;
     }
 
     try {
-      const result = await addCase(newCaseData);
+      const result = await addCase(newCaseData, user.uid);
       if (result.success && result.newCase) {
         toast({
           title: 'Affaire ajoutée',
@@ -61,6 +77,8 @@ export function AddCaseDialog({ children, onCaseAdded }: { children: React.React
         title: 'Erreur',
         description: (error as Error).message || "Impossible d'ajouter la nouvelle affaire.",
       });
+    } finally {
+        setIsLoading(false);
     }
   };
 
@@ -106,7 +124,10 @@ export function AddCaseDialog({ children, onCaseAdded }: { children: React.React
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit">Créer l'affaire</Button>
+            <Button type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                Créer l'affaire
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

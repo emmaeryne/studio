@@ -15,6 +15,7 @@ export type Appointment = {
   time: string;
   notes: string;
   caseId: string;
+  lawyerId: string;
   status: 'Confirmé' | 'En attente' | 'Annulé' | 'Reporté';
 };
 
@@ -29,13 +30,14 @@ export type Case = {
   clientName: string;
   clientAvatar: string;
   clientId: string;
+  lawyerId: string;
   caseType: 'Litige civil' | 'Droit pénal' | 'Droit de la famille' | 'Droit des sociétés' | 'Autre';
   status: 'Nouveau' | 'En cours' | 'Clôturé' | 'En attente du client';
   submittedDate: string;
   lastUpdate: string;
   description: string;
   documents: CaseDocument[];
-  appointments: Omit<Appointment, 'caseId' | 'clientName'>[];
+  appointments: Omit<Appointment, 'caseId' | 'clientName' | 'lawyerId'>[];
   keyDeadlines: Deadline[];
   _estimate?: CaseCostEstimate; // Temporary field for estimate
   totalCost?: number;
@@ -62,6 +64,7 @@ export type Conversation = {
     clientName: string;
     clientAvatar: string;
     clientId: string;
+    lawyerId: string;
     unreadCount: number;
     messages: Message[];
 };
@@ -99,6 +102,7 @@ export type Invoice = {
   clientId: string;
   caseId: string;
   caseNumber: string;
+  lawyerId: string;
   number: string;
   date: string;
   amount: number;

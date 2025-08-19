@@ -57,7 +57,13 @@ export function AddClientCaseDialog({ children }: { children: React.ReactNode })
     }
     
     try {
-        const result = await addClientCase(newCaseData, user);
+        const clientData = {
+            id: user.uid,
+            name: user.name,
+            avatar: user.avatar,
+            lawyerId: user.lawyerId
+        };
+        const result = await addClientCase(newCaseData, clientData);
         if (result.success && result.newCaseId) {
             toast({
                 title: 'Affaire Soumise',

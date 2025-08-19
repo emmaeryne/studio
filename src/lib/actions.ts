@@ -68,9 +68,14 @@ async function getDocument<T>(collectionName: string, id: string): Promise<T | n
 }
 
 // --- Case Actions ---
-export async function getCases(): Promise<Case[]> {
+export async function getCases(lawyerId?: string): Promise<Case[]> {
     const casesCollection = collection(db, 'cases');
-    const q = query(casesCollection, orderBy('submittedDate', 'desc'));
+    let q;
+    if (lawyerId) {
+        q = query(casesCollection, where('lawyerId', '==', lawyerId), orderBy('submittedDate', 'desc'));
+    } else {
+        q = query(casesCollection, orderBy('submittedDate', 'desc'));
+    }
     return getCollection<Case>('cases', q);
 }
 
@@ -137,6 +142,7 @@ export async function addCase(newCaseData: { clientName: string; caseType: Case[
             clientName: client.name,
             clientId: client.id,
             clientAvatar: client.avatar,
+            lawyerId: client.lawyerId || '',
             caseType: newCaseData.caseType,
             status: 'Nouveau',
             submittedDate: currentDate.toISOString(),
@@ -163,7 +169,7 @@ export async function addCase(newCaseData: { clientName: string; caseType: Case[
     }
 }
 
-export async function addClientCase(newCase: { caseType: Case['caseType']; description: string }, client: { id: string; name: string; avatar: string }) {
+export async function addClientCase(newCase: { caseType: Case['caseType']; description: string }, client: { uid: string; name: string; avatar: string; lawyerId?: string; }) {
     const currentDate = new Date();
 
     let caseEstimate: EstimateCaseCostOutput | null = null;
@@ -179,8 +185,9 @@ export async function addClientCase(newCase: { caseType: Case['caseType']; descr
     const newCaseData: Omit<Case, 'id'> = {
         caseNumber: nextCaseNumber,
         clientName: client.name,
-        clientId: client.id,
+        clientId: client.uid,
         clientAvatar: client.avatar,
+        lawyerId: client.lawyerId || '',
         caseType: newCase.caseType,
         status: 'Nouveau',
         submittedDate: currentDate.toISOString(),
@@ -267,8 +274,15 @@ export async function addDocumentToCase(caseId: string, documentData: CaseDocume
 }
 
 // --- Appointment Actions ---
-export async function getAppointments(): Promise<(Appointment & { clientName: string })[]> {
-    return getCollection<(Appointment & { clientName: string })>('appointments');
+export async function getAppointments(lawyerId?: string): Promise<(Appointment & { clientName: string })[]> {
+    const appointmentsCollection = collection(db, 'appointments');
+    let q;
+    if (lawyerId) {
+        q = query(appointmentsCollection, where('lawyerId', '==', lawyerId));
+    } else {
+        q = query(appointmentsCollection);
+    }
+    return getCollection<(Appointment & { clientName: string })>('appointments', q);
 }
 
 
@@ -281,6 +295,7 @@ export async function requestAppointment(appointmentData: { caseId: string, date
         const newAppointment: Appointment & { clientName: string } = {
             id: newAppointmentRef.id,
             ...appointmentData,
+            lawyerId: caseItem.lawyerId,
             clientName: caseItem.clientName,
             status: 'En attente'
         };
@@ -451,8 +466,24 @@ export async function updateClientProfile(clientId: string, updatedClient: Omit<
 }
 
 // --- Message Actions ---
-export async function getConversations(): Promise<Conversation[]> {
-    return getCollection<Conversation>('conversations');
+export async function getConversations(lawyerId?: string): Promise<Conversation[]> {
+    const convosCollection = collection(db, 'conversations');
+    let q;
+    if (lawyerId) {
+        // This assumes cases have lawyerId. Let's find cases first.
+        const casesRef = collection(db, 'cases');
+        const lawyerCasesQuery = query(casesRef, where('lawyerId', '==', lawyerId));
+        const lawyerCasesSnap = await getDocs(lawyerCasesQuery);
+        const caseIds = lawyerCasesSnap.docs.map(doc => doc.id);
+        
+        if(caseIds.length === 0) return [];
+
+        q = query(convosCollection, where('caseId', 'in', caseIds));
+    } else {
+        q = query(convosCollection);
+    }
+    
+    return getCollection<Conversation>('conversations', q);
 }
 export async function getClientConversations(clientId: string): Promise<Conversation[]> {
     if (!clientId) return [];
