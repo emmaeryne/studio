@@ -70,8 +70,10 @@ async function getDocument<T>(collectionName: string, id: string): Promise<T | n
 // --- Case Actions ---
 export async function getCases(lawyerId: string): Promise<Case[]> {
     const casesCollection = collection(db, 'cases');
-    const q = query(casesCollection, where('lawyerId', '==', lawyerId), orderBy('submittedDate', 'desc'));
-    return getCollection<Case>('cases', q);
+    // Remove orderBy to prevent needing a composite index. Sorting is done in-app.
+    const q = query(casesCollection, where('lawyerId', '==', lawyerId));
+    const cases = await getCollection<Case>('cases', q);
+    return cases.sort((a, b) => new Date(b.submittedDate).getTime() - new Date(a.submittedDate).getTime());
 }
 
 export async function getCaseById(id: string): Promise<Case | null> {
@@ -81,8 +83,10 @@ export async function getCaseById(id: string): Promise<Case | null> {
 export async function getClientCases(clientId: string): Promise<Case[]> {
     if (!clientId) return [];
     const casesCollection = collection(db, 'cases');
-    const q = query(casesCollection, where('clientId', '==', clientId), orderBy('submittedDate', 'desc'));
-    return getCollection<Case>('cases', q);
+    // Remove orderBy to prevent needing a composite index. Sorting is done in-app.
+    const q = query(casesCollection, where('clientId', '==', clientId));
+    const cases = await getCollection<Case>('cases', q);
+    return cases.sort((a, b) => new Date(b.submittedDate).getTime() - new Date(a.submittedDate).getTime());
 }
 
 // Helper function to create a conversation
@@ -168,6 +172,10 @@ export async function addCase(newCaseData: { clientName: string; caseType: Case[
 export async function addClientCase(newCase: { caseType: Case['caseType']; description: string }, client: { uid: string; name: string; avatar: string; lawyerId?: string; }) {
     const currentDate = new Date();
 
+    if (!client.lawyerId) {
+        return { success: false, error: "Vous devez sélectionner un avocat avant de soumettre une affaire." };
+    }
+
     let caseEstimate: EstimateCaseCostOutput | null = null;
     try {
         caseEstimate = await estimateCaseCost(newCase);
@@ -183,7 +191,7 @@ export async function addClientCase(newCase: { caseType: Case['caseType']; descr
         clientName: client.name,
         clientId: client.uid,
         clientAvatar: client.avatar,
-        lawyerId: client.lawyerId || '',
+        lawyerId: client.lawyerId,
         caseType: newCase.caseType,
         status: 'Nouveau',
         submittedDate: currentDate.toISOString(),
@@ -680,8 +688,10 @@ export async function makePayment(invoiceId: string) {
 export async function getNotifications(userId: string): Promise<Notification[]> {
     if (!userId) return [];
     const notifsCollection = collection(db, 'notifications');
-    const q = query(notifsCollection, where('userId', '==', userId), orderBy('date', 'desc'));
-    return getCollection<Notification>('notifications', q);
+    // Remove orderBy to prevent needing a composite index. Sorting is done in-app.
+    const q = query(notifsCollection, where('userId', '==', userId));
+    const notifications = await getCollection<Notification>('notifications', q);
+    return notifications.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 // --- AI Actions ---
