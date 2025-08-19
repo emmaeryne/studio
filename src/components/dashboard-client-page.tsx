@@ -19,11 +19,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, CheckCircle2, Archive, Clock, ArrowUpRight, PlusCircle, Calendar as CalendarIcon, Check, Edit, BarChart3, Bell } from "lucide-react";
+import { Briefcase, CheckCircle2, Archive, Clock, ArrowUpRight, PlusCircle, Calendar as CalendarIcon, Check, Edit, BarChart3, Bell, Loader2 } from "lucide-react";
 import { AddCaseDialog } from "@/components/add-case-dialog";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { updateAppointmentStatus } from "@/lib/actions";
+import { updateAppointmentStatus, getCases, getAppointments } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import type { Appointment, Case } from "@/lib/data";
 import { RescheduleAppointmentDialog } from "@/components/reschedule-appointment-dialog";
@@ -31,6 +31,8 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend } from "recharts";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useAuth } from "@/hooks/useAuth";
+
 
 const chartConfig = {
   cases: {
@@ -39,12 +41,28 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export function DashboardClientPage({ initialCases, initialAppointments }: { initialCases: Case[], initialAppointments: (Appointment & { clientName: string })[] }) {
-  const [cases, setCases] = useState<Case[]>(initialCases);
-  const [appointments, setAppointments] = useState<(Appointment & { clientName: string })[]>(initialAppointments);
+export function DashboardClientPage() {
+  const { user, loading: authLoading } = useAuth();
+  const [cases, setCases] = useState<Case[]>([]);
+  const [appointments, setAppointments] = useState<(Appointment & { clientName: string })[]>([]);
+  const [isDataLoading, setIsDataLoading] = useState(true);
   const [appointmentToReschedule, setAppointmentToReschedule] = useState<(Appointment & { clientName: string }) | null>(null);
   const { toast } = useToast();
   const router = useRouter();
+  
+  useEffect(() => {
+    if (user) {
+      setIsDataLoading(true);
+      Promise.all([
+        getCases(user.uid),
+        getAppointments(user.uid)
+      ]).then(([casesData, appointmentsData]) => {
+        setCases(casesData);
+        setAppointments(appointmentsData);
+        setIsDataLoading(false);
+      });
+    }
+  }, [user]);
 
   const handleCaseAdded = (newCase: Case) => {
     setCases(prev => [newCase, ...prev]);
@@ -143,6 +161,15 @@ export function DashboardClientPage({ initialCases, initialAppointments }: { ini
   ].slice(0, 5);
 
 
+  if (authLoading || isDataLoading) {
+    return (
+      <div className="flex h-[calc(100vh-8rem)] w-full flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <p className="mt-2 text-muted-foreground">Chargement du tableau de bord...</p>
+      </div>
+    );
+  }
+
   return (
     <>
     <RescheduleAppointmentDialog 
@@ -174,7 +201,7 @@ export function DashboardClientPage({ initialCases, initialAppointments }: { ini
                     { title: "Affaires en cours", value: stats.inProgress, icon: Briefcase, color: "text-primary" },
                     { title: "Affaires Clôturées", value: stats.closed, icon: CheckCircle2, color: "text-green-600" },
                     { title: "Nouvelles Affaires", value: stats.new, icon: Archive, color: "text-amber-600" },
-                    { title: "Échéances Proches", value: cases.reduce((acc, c) => acc + c.keyDeadlines.length, 0), icon: Clock, color: "text-destructive" }
+                    { title: "Échéances Proches", value: cases.reduce((acc, c) => acc + (c.keyDeadlines?.length || 0), 0), icon: Clock, color: "text-destructive" }
                 ].map((stat, index) => (
                     <Card key={index}>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
