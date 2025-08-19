@@ -57,13 +57,8 @@ export function AddClientCaseDialog({ children }: { children: React.ReactNode })
     }
     
     try {
-        const clientData = {
-            id: user.uid,
-            name: user.name,
-            avatar: user.avatar,
-            lawyerId: user.lawyerId
-        };
-        const result = await addClientCase(newCaseData, clientData);
+        // Pass the user object directly, as the action now expects an object with 'uid'
+        const result = await addClientCase(newCaseData, user);
         if (result.success && result.newCaseId) {
             toast({
                 title: 'Affaire Soumise',
@@ -79,7 +74,7 @@ export function AddClientCaseDialog({ children }: { children: React.ReactNode })
        toast({
           variant: 'destructive',
           title: 'Erreur',
-          description: "Impossible de soumettre la nouvelle affaire. Veuillez réessayer.",
+          description: (error as Error).message || "Impossible de soumettre la nouvelle affaire. Veuillez réessayer.",
        });
     } finally {
         setIsLoading(false);
