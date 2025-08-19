@@ -60,11 +60,8 @@ export default function SelectLawyerPage() {
         title: "Avocat sélectionné !",
         description: "Vous allez être redirigé vers votre tableau de bord.",
       });
-      // A small delay to allow the auth context to refresh with the new lawyerId
-      setTimeout(() => {
-        router.push("/client/dashboard");
-        router.refresh(); // Force a refresh to ensure layout gets new user data
-      }, 1500);
+      // A hard reload is the most reliable way to force the AuthContext to get the new user data (with lawyerId)
+      window.location.href = "/client/dashboard";
     } else {
       toast({
         variant: "destructive",
